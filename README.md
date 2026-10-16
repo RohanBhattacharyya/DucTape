@@ -5,90 +5,68 @@ Starting in 2027, the official Driver Station has cross platform support, I no l
 More information can be found [here](https://wpilib.org/blog/the-2027-first-driver-station) and [here](https://github.com/wpilibsuite/FirstDriverStation-Public)
 <br/><br/><br/><br/><br/>
 
-![Build Status](https://github.com/Redrield/Conductor/workflows/Build%20Status/badge.svg)
+[![CI](https://github.com/Redrield/Conductor/actions/workflows/ci.yml/badge.svg)](https://github.com/Redrield/Conductor/actions/workflows/ci.yml)
 
 # Conductor: A cross-platform FRC Driver Station
 
-Conductor is a Driver Station for FRC robots for Linux and macOS which supports nearly<sup>*</sup> every feature of the NI Driver Station.
+Conductor is a Driver Station for FRC robots for Linux and macOS which supports nearly<sup>*</sup> every feature of the NI Driver Station. It also includes a [Model Context Protocol](https://modelcontextprotocol.io) server, so AI agents such as Claude can run the driver station too: check the robot's status, run timed tests in the WPILib simulator, read the console and drive a virtual joystick.
 
-<sup>*</sup>Conductor cannot yet auto-launch dashboards, and is not and will never be compatible with the Field Management System. 
+<sup>*</sup>Conductor cannot yet auto-launch dashboards, and is not and will never be compatible with the Field Management System.
 
-# Building
+- [Installing](#installing)
+- [Usage](#usage)
+- [AI agents (MCP)](#ai-agents-mcp)
+- [Command line](#command-line)
+- [Building and contributing](#building-and-contributing)
 
-Before building, ensure that you have the following dependencies installed:
+# Installing
 
-- A Rust toolchain (e.g. installed via [Rustup](https://rustup.rs))
-- [NodeJS](https://nodejs.org) with NPM
-- [WebKitGTK](https://webkitgtk.org/)  
+## Linux packages
 
-## Ubuntu
+Every [release](https://github.com/Redrield/Conductor/releases) has packages for x86_64 and aarch64:
+
+| Distribution | Install |
+| --- | --- |
+| Debian, Ubuntu 22.04+, Mint, Pop!_OS | `sudo apt install ./conductor_*.deb` |
+| Fedora, RHEL, openSUSE | `sudo dnf install ./conductor-*.rpm` |
+| Arch, Manjaro, CachyOS | `makepkg -si` with [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD) |
+| Anything else | `tar -xzf conductor-*-linux.tar.gz -C ~/.local --strip-components=1` |
+
+Packages install a desktop entry, so Conductor shows up in your application menu.
+
+## From source
+
+The install script installs build dependencies (apt, dnf, pacman or zypper), a Rust toolchain if yours is missing or older than 1.88, and a private copy of Node.js if yours is older than 20.19. It then builds Conductor and installs it into `~/.local`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Redrield/Conductor/next/scripts/install.sh | sh
+# or from a checkout, optionally system-wide:
+./scripts/install.sh --system
 ```
-# Dependencies
-sudo apt-get install -y nodejs libudev-dev libx11-dev libxi-dev libpango1.0-dev libatk1.0-dev libsoup2.4-dev libgtk-3-dev libwebkit2gtk-4.0-dev
 
-# Node Version Manager
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-nvm install 14
-nvm use 14
+Or do it by hand. You need Rust 1.88+, Node.js 20.19+ and the WebKitGTK 4.1 development files (`libwebkit2gtk-4.1-dev libgtk-3-dev libudev-dev libx11-dev` on Debian/Ubuntu):
 
-# Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
-cargo install cargo-bundle
-
-# Conductor
-git clone https://github.com/Redrield/Conductor
-make setup && make release
-```  
-  
-## Mac
+```sh
+git clone https://github.com/Redrield/Conductor && cd Conductor
+make release            # or just `cargo build --release`; it builds the web UI too
+sudo make install       # PREFIX=/usr/local by default
 ```
-# Homebrew Install
-xcode-select --install
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install webkitgtk
 
-# Node Version Manager
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-nvm install 14
-nvm use 14
+`cargo install --git https://github.com/Redrield/Conductor --locked` also works.
 
-# Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
-cargo install cargo-bundle
+## macOS
 
-# Conductor
-git clone https://github.com/Redrield/Conductor
-make setup && make release
-```  
+Download `Conductor-*-macos-aarch64.zip` from the releases, or build it yourself with `cargo install cargo-bundle && cargo bundle --release`. Global hotkeys need the Input Monitoring permission (System Settings → Privacy & Security).
 
-Building a release build of Conductor is simple; after cloning the repository run `make setup && make release` to install all the dependencies of the react applications, and then compile both the React apps and the Rust backend into a single executable. When this process is completed, you can find the compiled driver station at `target/release/conductor`. 
+## Headless
 
-# Prebuilt Artifacts
-
-Some artifacts are built and saved automatically by Github Actions. These artifacts can be found published under the Build Status action for the `next` branch.  The artifacts that can be downloaded [here](https://github.com/Redrield/Conductor/actions/workflows/ci.yml?query=branch%3Anext) (Click the link, select the top result, and scroll down to the bottom section that says "artifacts") are:
-
-* A normal x86_64 Linux executable, compiled on Ubuntu
-* An x86_64 .deb file
-* An x86_64 .rpm file
-* An x86_64 macOS .app file (This is compressed in a tarball to preserve permissions)
-
-If desired, these artifacts can be downloaded and installed rather than having to build the project manually.
-
-# Contributing
-
-Building debug builds is almost as simple, after initially cloning run `make setup && make all` to compile both the react apps and the Rust app once. Afterwards, assuming you're only changing the Rust app you can use `cargo run` to skip the compile time of the react apps. If you're changing the main window as well you can use `make` to only recompile the main window as well as the Rust app. 
+Conductor can run without windows (`conductor --headless`) and serve its UI to a browser. Builds with `--no-default-features` don't need WebKitGTK at all, for example on a Raspberry Pi.
 
 # Usage
 
 Conductor is designed to emulate the design of the NI Driver Station as closely as possible. The main window is split into three sections, Control, Config, and Joysticks, while the second window serves as a larger viewport to see riolog messages.
+
+Enter disables the robot and Space e-stops it. On X11 these work even when Conductor isn't focused, like the NI Driver Station; on Wayland, which doesn't allow global hotkeys, they work while a Conductor window is focused.
 
 ## Control Tab
 
@@ -100,9 +78,9 @@ Conductor is designed to emulate the design of the NI Driver Station as closely 
 
 *The control tab of Conductor when connected to a robot*
 
-The control tab is very similar to the equivalent tab in the NI Driver Station. On the far left are selectors for the mode, and buttons to enable or disable the robot. In the middle there are boxes indicating connection status, voltage, team number, and current operating mode. On the right is the smaller stdout viewport for seeing messages from riolog.
+On the far left are selectors for the mode, and buttons to enable or disable the robot. In the middle are indicators for communication, robot code and joysticks (hover a red one for an explanation), the team station, team number, battery voltage and the robot's status. On the right is a smaller view of the robot console.
 
-Underneath the stdout window is one final indicator which shows simulator connection. This indicator is normally red, including when connected to a physical robot. It lights up green when Conductor is connected to a simulator instance on the local machine. 
+The simulator indicator lights up when Conductor is connected to a WPILib simulation on the local machine instead of a robot.
 
 ![Conductor with simulator](./images/conductor-simulator.png)
 
@@ -112,18 +90,96 @@ Underneath the stdout window is one final indicator which shows simulator connec
 
 ![Configuration](./images/conductor-config.png)
 
-The second tab in the main window is for configuring functions that only need to be set once, such as team number, and game data.
-
-The first accessible field is the team number field. This will update the number displayed in the control tab, and will also configure the IP to which Conductor will try to connect. The target IP is the familiar 10.TE.AM.2 IP, filled in with the value provided.
-
-The "Connect via USB?" checkbox enables users to override the team number IP and connect to `172.22.11.2` if they have connected to the RIO over USB in a way that allows them to use this interface.
-
-The game data field can be used to update the Game Specific Message given to robot code. This can be used similar to the NI Driver Station to test code that uses this message, such as control panel code in Infinite Recharge.
-
-On the right side are buttons to restart user code, and reboot the roboRIO. These function as they do in the NI Driver Station.
+The team number sets the address Conductor connects to, the familiar 10.TE.AM.2. "Connect via USB" overrides this to reach the roboRIO's USB interface at `172.22.11.2`. Game data sets the Game Specific Message given to robot code. On the right are buttons to restart user code and reboot the roboRIO. Settings are saved to `~/.config/conductor/conductor.toml`.
 
 ## Joysticks
 
 ![Joysticks Tab](./images/conductor-joysticks.png)
 
-The final tab is the most sparse, and allows users to configure their joystick mappings. The list visible in this tab is drag and drop, and will update the joystick mappings as they are reordered. The first entry in this map is the Virtual Joystick, which can be used to silence WPILib warnings about unplugged joysticks should it be desired. As joysticks are detected by Conductor, they will be added to this list, replacing "Unbound" entries as required.
+Robot code sees six joystick ports. Controllers are put on the first free port when they're plugged in; drag ports to reorder them, or move devices on and off ports. The Virtual Joystick can be put on a port to silence WPILib warnings about unplugged joysticks, and is what AI agents use to drive. Unplugging a controller that is on a port disables the robot.
+
+# AI agents (MCP)
+
+Conductor is an MCP server. Agents get tools to read status, set the team number, mode, alliance and game data, enable/disable/e-stop, restart code, reboot the roboRIO, wait for the robot to connect, read the console, manage joystick ports and drive the virtual joystick. The `run_mode` tool runs a mode for a set time and returns the console output, which makes it easy to ask an agent to "run auto in the simulator and tell me why it crashes".
+
+Run `conductor mcp-setup` to print these instructions with the right paths.
+
+**Claude Code**
+
+```sh
+claude mcp add conductor -- conductor mcp          # headless
+claude mcp add conductor -- conductor mcp --gui    # with windows, so you can watch and take over
+```
+
+**Claude Desktop, Cursor, VS Code, and other clients**
+
+```json
+{
+  "mcpServers": {
+    "conductor": { "command": "conductor", "args": ["mcp", "--gui"] }
+  }
+}
+```
+
+**Attaching to a Conductor window you already have open**
+
+Only one driver station can talk to a robot at a time. To let an agent use the window you're already running, start it with `--mcp-http` and connect over Streamable HTTP:
+
+```sh
+conductor --mcp-http
+claude mcp add --transport http conductor http://127.0.0.1:7341/mcp
+```
+
+## Safety
+
+Robots are dangerous, and agents make mistakes.
+
+- **Agents may only enable the WPILib simulator by default.** To let them enable real robots, pass `--mcp-enable always` or set `enable_policy = "always"` under `[mcp]` in the config file. `--mcp-enable never` blocks agents from enabling anything.
+- **Every agent enable is timed.** Conductor disables the robot when the time runs out (150 seconds at most, a full match; change with `--mcp-max-enable`).
+- Enabling needs communication and running robot code, and changing mode disables the robot, as with the NI Driver Station.
+- Disable and e-stop are always available to agents and to you. The window shows when an agent enabled the robot, with a countdown.
+- In `conductor mcp` modes, global hotkeys are off so that typing to your agent can't e-stop the robot; Enter and Space still work in Conductor's window.
+- Conductor disables the robot when communication drops, so it doesn't come back enabled.
+- The HTTP endpoint only listens on localhost and rejects requests from web pages.
+
+# Command line
+
+```
+conductor [OPTIONS]              open the driver station
+conductor mcp [--gui]            MCP server on stdin/stdout
+conductor mcp-setup              print MCP client configuration
+
+  -t, --team <TEAM>              team number (saved)
+      --usb                      connect over USB (172.22.11.2)
+      --robot-ip <IP>            connect to this address instead
+      --headless                 no windows; serve the UI to a browser
+      --ui-addr <ADDR>           address for the UI server [default: 127.0.0.1:0]
+      --mcp-http [<ADDR>]        also serve MCP over HTTP [default: 127.0.0.1:7341]
+      --mcp-enable <POLICY>      never | simulator | always
+      --mcp-max-enable <SECONDS> longest agent enable [default: 150]
+      --no-global-hotkeys        only handle Enter/Space in Conductor's window
+      --config <PATH>            use another config file
+```
+
+Logging goes to stderr; set `CONDUCTOR_LOG=debug` for more.
+
+# Building and contributing
+
+| Path | What |
+| --- | --- |
+| `src/` | The application: `controller.rs` owns all driver station state, `mcp.rs` is the MCP server, `server.rs` serves the UI, `gui.rs` the native windows |
+| `crates/ds/` | The FRC driver station protocol library (`ds`, ported to tokio 1), with a fake roboRIO for tests |
+| `ui/` | The web UI: React 19, TypeScript, Vite |
+| `packaging/` | Desktop entry, AppStream metadata, icons, PKGBUILD |
+
+```sh
+make debug     # or `cargo build`; build.rs runs `npm ci` and builds the UI when it changes
+make run
+make dev       # hot-reloading UI on http://localhost:5173 against a headless backend
+make test      # Rust tests, including end-to-end MCP tests against a fake roboRIO
+make lint      # rustfmt, clippy and TypeScript checks
+```
+
+Set `CONDUCTOR_SKIP_UI_BUILD=1` to skip the npm step when you're only changing Rust. Without npm installed, Conductor embeds a placeholder page and everything else, including MCP, still works.
+
+Releases are built by GitHub Actions when a `v*` tag is pushed.

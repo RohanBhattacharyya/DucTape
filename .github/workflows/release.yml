@@ -1,0 +1,111 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CONDUCTOR_SKIP_UI_BUILD: "1"
+
+jobs:
+  ui:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - run: |
+          npm --prefix ui ci
+          npm --prefix ui run build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ui-dist
+          path: ui/dist
+
+  linux:
+    needs: ui
+    strategy:
+      matrix:
+        include:
+          # 22.04 keeps the glibc requirement low enough for older distributions
+          - runner: ubuntu-22.04
+            arch: x86_64
+          - runner: ubuntu-22.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: ui-dist
+          path: ui/dist
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb,cargo-generate-rpm
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libudev-dev libx11-dev
+      - run: cargo build --release --locked
+      - name: Package
+        run: |
+          mkdir -p dist
+          cargo deb --no-build -o dist/
+          cargo generate-rpm -o dist/
+          stage="conductor-${GITHUB_REF_NAME}-${{ matrix.arch }}-linux"
+          make install DESTDIR="$PWD/$stage" PREFIX=
+          cp README.md LICENSE "$stage/"
+          tar -czf "dist/$stage.tar.gz" "$stage"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-${{ matrix.arch }}
+          path: dist/*
+
+  macos:
+    needs: ui
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: ui-dist
+          path: ui/dist
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-bundle
+      - run: cargo bundle --release --format osx
+      - name: Package
+        run: |
+          mkdir -p dist
+          ditto -c -k --keepParent target/release/bundle/osx/Conductor.app "dist/Conductor-${GITHUB_REF_NAME}-macos-aarch64.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: dist/*
+
+  publish:
+    needs: [linux, macos]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          (cd dist && sha256sum * > SHA256SUMS)
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --generate-notes

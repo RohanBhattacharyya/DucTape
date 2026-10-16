@@ -11,6 +11,8 @@ depends=('webkit2gtk-4.1' 'gtk3' 'systemd-libs' 'libx11' 'gcc-libs' 'glibc')
 makedepends=('git' 'cargo' 'nodejs' 'npm')
 provides=("$_pkgname")
 conflicts=("$_pkgname")
+# makepkg's LTO flags turn bundled C code into GCC bytecode that the Rust linker can't read
+options=('!lto')
 source=("$_pkgname::git+$url.git#branch=next")
 sha256sums=('SKIP')
 

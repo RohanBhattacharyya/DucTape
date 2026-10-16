@@ -157,7 +157,9 @@ fn ui_router(ctrl: Controller) -> Router {
 
 /// The MCP Streamable HTTP endpoint, mounted at `/mcp`
 pub fn mcp_router(ctrl: Controller, cancel: CancellationToken) -> Router {
-    let mut config = StreamableHttpServerConfig::default();
+    // Host validation (loopback only) is on by default. MCP clients don't send an Origin
+    // header and no web page should call this endpoint, so reject every request that has one.
+    let mut config = StreamableHttpServerConfig::default().enforce_origin_validation();
     config.cancellation_token = cancel;
     let service: StreamableHttpService<ConductorMcp, LocalSessionManager> =
         StreamableHttpService::new(
