@@ -20,7 +20,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio_util::sync::CancellationToken;
 
 use crate::controller::{Controller, Event, Source};
-use crate::mcp::ConductorMcp;
+use crate::mcp::DucTapeMcp;
 use crate::protocol::{ClientCommand, ServerMessage};
 
 const CONSOLE_BACKLOG: usize = 2000;
@@ -161,9 +161,9 @@ pub fn mcp_router(ctrl: Controller, cancel: CancellationToken) -> Router {
     // header and no web page should call this endpoint, so reject every request that has one.
     let mut config = StreamableHttpServerConfig::default().enforce_origin_validation();
     config.cancellation_token = cancel;
-    let service: StreamableHttpService<ConductorMcp, LocalSessionManager> =
+    let service: StreamableHttpService<DucTapeMcp, LocalSessionManager> =
         StreamableHttpService::new(
-            move || Ok(ConductorMcp::new(ctrl.clone())),
+            move || Ok(DucTapeMcp::new(ctrl.clone())),
             Arc::new(LocalSessionManager::default()),
             config,
         );

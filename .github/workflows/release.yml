@@ -9,7 +9,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  CONDUCTOR_SKIP_UI_BUILD: "1"
+  DUCTAPE_SKIP_UI_BUILD: "1"
 
 jobs:
   ui:
@@ -61,7 +61,7 @@ jobs:
           mkdir -p dist
           cargo deb --no-build -o dist/
           cargo generate-rpm -o dist/
-          stage="conductor-${GITHUB_REF_NAME}-${{ matrix.arch }}-linux"
+          stage="ductape-${GITHUB_REF_NAME}-${{ matrix.arch }}-linux"
           make install DESTDIR="$PWD/$stage" PREFIX=
           cp README.md LICENSE "$stage/"
           tar -czf "dist/$stage.tar.gz" "$stage"
@@ -88,7 +88,7 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          ditto -c -k --keepParent target/release/bundle/osx/Conductor.app "dist/Conductor-${GITHUB_REF_NAME}-macos-aarch64.zip"
+          ditto -c -k --keepParent target/release/bundle/osx/DucTape.app "dist/DucTape-${GITHUB_REF_NAME}-macos-aarch64.zip"
       - uses: actions/upload-artifact@v7
         with:
           name: macos

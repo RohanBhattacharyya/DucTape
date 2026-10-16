@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.rohanbhattacharyya.DucTape</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MPL-2.0</project_license>
+  <name>DucTape Driver Station</name>
+  <summary>Driver station for FRC robots</summary>
+  <description>
+    <p>
+      DucTape is a driver station for FIRST Robotics Competition robots on Linux and macOS.
+      It connects to a roboRIO or the WPILib simulator, enables and disables the robot in
+      autonomous, teleoperated and test modes, maps game controllers to joystick ports, and
+      shows the robot console.
+    </p>
+    <p>
+      DucTape includes a Model Context Protocol server, so AI agents can run the driver
+      station too: check status, enable the robot, run timed tests, read the console and drive
+      a virtual joystick. Agents can be restricted to the simulator, or given time limits.
+    </p>
+    <p>DucTape is a revival of Conductor, the cross-platform driver station by Kaitlyn Kenwell.</p>
+    <p>DucTape is not compatible with the Field Management System and cannot be used in competition.</p>
+  </description>
+  <launchable type="desktop-id">io.github.rohanbhattacharyya.DucTape.desktop</launchable>
+  <url type="homepage">https://github.com/RohanBhattacharyya/DucTape</url>
+  <url type="bugtracker">https://github.com/RohanBhattacharyya/DucTape/issues</url>
+  <developer id="io.github.rohanbhattacharyya">
+    <name>DucTape contributors</name>
+  </developer>
+  <provides>
+    <binary>ductape</binary>
+  </provides>
+  <categories>
+    <category>Development</category>
+    <category>Robotics</category>
+  </categories>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/RohanBhattacharyya/DucTape/HEAD/images/control-connected.png</image>
+      <caption>The control tab while connected to a robot</caption>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.2.0" date="2026-10-16">
+      <description>
+        <p>
+          First DucTape release, reviving Conductor: a modernised stack, Linux packages, and a
+          Model Context Protocol server for AI agents.
+        </p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -14,7 +14,7 @@ pub fn bind_keys(ctrl: Controller) -> bool {
         && std::env::var("XDG_SESSION_TYPE").is_ok_and(|t| t == "wayland");
     if wayland {
         tracing::info!(
-            "global hotkeys are unavailable on Wayland; Enter/Space work while Conductor is focused"
+            "global hotkeys are unavailable on Wayland; Enter/Space work while DucTape is focused"
         );
         return false;
     }

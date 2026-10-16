@@ -1,14 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#3a3a3a"/>
-      <stop offset="1" stop-color="#1c1c1c"/>
+      <stop offset="0" stop-color="#2f4a66"/>
+      <stop offset="1" stop-color="#1b2a3a"/>
     </linearGradient>
+    <linearGradient id="duck" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd84a"/>
+      <stop offset="1" stop-color="#f2b705"/>
+    </linearGradient>
+    <linearGradient id="tape" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d9dee3"/>
+      <stop offset="1" stop-color="#9ea7b0"/>
+    </linearGradient>
+    <clipPath id="tile">
+      <rect x="8" y="8" width="240" height="240" rx="52"/>
+    </clipPath>
+    <clipPath id="body">
+      <path d="M44 120 C60 132 70 138 84 136 C100 120 150 118 182 132 C214 146 218 196 186 214 C150 232 82 230 56 204 C38 186 36 150 44 120 Z"/>
+    </clipPath>
   </defs>
   <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#bg)"/>
-  <!-- The "C": an arc of signal strength -->
-  <path d="M178 76a72 72 0 1 0 0 104" fill="none" stroke="#00bc8c" stroke-width="26" stroke-linecap="round"/>
-  <!-- A conductor's baton -->
-  <path d="M120 150 196 74" stroke="#f5f5f5" stroke-width="12" stroke-linecap="round"/>
-  <circle cx="116" cy="154" r="15" fill="#e74c3c"/>
+  <!-- water -->
+  <path clip-path="url(#tile)" d="M8 214 q16 -10 32 0 t32 0 t32 0 t32 0 t32 0 t32 0 t32 0 t32 0 V248 H8 Z" fill="#3d6d99" opacity="0.55"/>
+  <!-- body with tail -->
+  <path d="M44 120 C60 132 70 138 84 136 C100 120 150 118 182 132 C214 146 218 196 186 214 C150 232 82 230 56 204 C38 186 36 150 44 120 Z" fill="url(#duck)"/>
+  <!-- head -->
+  <circle cx="160" cy="98" r="44" fill="url(#duck)"/>
+  <!-- beak -->
+  <path d="M194 96 C214 90 236 96 240 108 C230 120 210 124 194 118 Z" fill="#ff8a1f"/>
+  <path d="M196 110 C212 112 228 112 238 108 C230 120 210 124 196 118 Z" fill="#e5700c"/>
+  <!-- eye -->
+  <circle cx="170" cy="86" r="8" fill="#1d1d1d"/>
+  <circle cx="173" cy="83" r="2.6" fill="#fff"/>
+  <!-- wing -->
+  <path d="M96 168 C116 146 152 146 168 162 C152 186 120 192 98 184 Z" fill="#e8a600" opacity="0.85"/>
+  <!-- duct tape wrapped around the body -->
+  <g clip-path="url(#body)">
+    <path d="M30 170 L222 128 L230 160 L38 202 Z" fill="url(#tape)"/>
+    <path d="M30 176 L224 134 M34 186 L226 144 M36 196 L228 154" stroke="#8b949d" stroke-width="1.4" opacity="0.6"/>
+  </g>
+  <!-- the loose end of the tape, peeling off with a torn edge -->
+  <path d="M199 137 C208 138 216 142 222 146 l-4 4 l6 3 l-5 4 l6 3 l-4 4 C214 166 206 166 201 165 Z" fill="url(#tape)"/>
+  <path d="M201 165 C206 166 212 166 217 164" stroke="#7d868f" stroke-width="1.5" fill="none" opacity="0.7"/>
 </svg>

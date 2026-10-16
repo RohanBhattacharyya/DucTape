@@ -1,20 +1,20 @@
 #!/usr/bin/env sh
-# Build and install Conductor from source on Linux.
+# Build and install DucTape from source on Linux.
 #
 #   ./scripts/install.sh                 install for this user into ~/.local
 #   ./scripts/install.sh --system        install into /usr/local (uses sudo)
 #   ./scripts/install.sh --no-deps       don't install system packages
 #
 # Run it from a checkout, or on its own to clone the repository first:
-#   curl -fsSL https://raw.githubusercontent.com/Redrield/Conductor/next/scripts/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/RohanBhattacharyya/DucTape/HEAD/scripts/install.sh | sh
 #
 # Installs build dependencies with your package manager (apt, dnf, pacman or zypper), a Rust
 # toolchain with rustup if yours is missing or too old, and a private copy of Node.js for the
 # build if yours is missing or too old.
 set -eu
 
-REPO="${CONDUCTOR_REPO:-https://github.com/Redrield/Conductor.git}"
-BRANCH="${CONDUCTOR_BRANCH:-next}"
+REPO="${DUCTAPE_REPO:-https://github.com/RohanBhattacharyya/DucTape.git}"
+BRANCH="${DUCTAPE_BRANCH:-}"
 MIN_RUST="1.88"
 NODE_MAJOR=22
 PREFIX="$HOME/.local"
@@ -114,15 +114,15 @@ has git || die "git is required"
 ensure_rust
 ensure_node
 
-if [ -f "$(dirname "$0")/../Cargo.toml" ] && grep -q '^name = "conductor"' "$(dirname "$0")/../Cargo.toml"; then
+if [ -f "$(dirname "$0")/../Cargo.toml" ] && grep -q '^name = "ductape"' "$(dirname "$0")/../Cargo.toml"; then
     SRC="$(cd "$(dirname "$0")/.." && pwd)"
 else
     say "Cloning $REPO"
-    git clone --depth 1 --branch "$BRANCH" "$REPO" "$WORK/conductor"
-    SRC="$WORK/conductor"
+    git clone --depth 1 ${BRANCH:+--branch "$BRANCH"} "$REPO" "$WORK/ductape"
+    SRC="$WORK/ductape"
 fi
 
-say "Building Conductor (this takes a few minutes the first time)"
+say "Building DucTape (this takes a few minutes the first time)"
 cd "$SRC"
 cargo build --release --locked
 
@@ -136,10 +136,10 @@ if has update-desktop-database; then
     update-desktop-database "$PREFIX/share/applications" >/dev/null 2>&1 || true
 fi
 
-say "Installed $PREFIX/bin/conductor"
+say "Installed $PREFIX/bin/ductape"
 case ":$PATH:" in
     *":$PREFIX/bin:"*) ;;
     *) warn "$PREFIX/bin is not on your PATH; add it in your shell profile" ;;
 esac
 echo
-echo "Run 'conductor' to start the driver station, or 'conductor mcp-setup' to connect an AI agent."
+echo "Run 'ductape' to start the driver station, or 'ductape mcp-setup' to connect an AI agent."

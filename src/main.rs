@@ -25,9 +25,10 @@ use controller::{Controller, Options};
 
 const DEFAULT_MCP_ADDR: &str = "127.0.0.1:7341";
 
-/// A driver station for FRC robots, with a Model Context Protocol server for AI agents.
+/// DucTape Driver Station: a driver station for FRC robots, with a Model Context Protocol
+/// server for AI agents. A revival of Conductor.
 #[derive(Parser)]
-#[command(name = "conductor", version, about, long_about = None)]
+#[command(name = "ductape", version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
@@ -45,18 +46,18 @@ enum Command {
         #[arg(long)]
         gui: bool,
     },
-    /// Print how to connect MCP clients to Conductor
+    /// Print how to connect MCP clients to DucTape
     McpSetup,
 }
 
 #[derive(Args, Clone)]
 struct RunArgs {
     /// Config file to use instead of the default location
-    #[arg(long, value_name = "PATH", global = true, env = "CONDUCTOR_CONFIG")]
+    #[arg(long, value_name = "PATH", global = true, env = "DUCTAPE_CONFIG")]
     config: Option<std::path::PathBuf>,
 
     /// Team number (saved for next time)
-    #[arg(long, short, global = true, env = "CONDUCTOR_TEAM")]
+    #[arg(long, short, global = true, env = "DUCTAPE_TEAM")]
     team: Option<u32>,
 
     /// Connect over the roboRIO's USB interface (172.22.11.2)
@@ -77,7 +78,7 @@ struct RunArgs {
         value_name = "ADDR",
         default_value = "127.0.0.1:0",
         global = true,
-        env = "CONDUCTOR_UI_ADDR"
+        env = "DUCTAPE_UI_ADDR"
     )]
     ui_addr: SocketAddr,
 
@@ -85,17 +86,17 @@ struct RunArgs {
     #[arg(long, value_name = "ADDR", num_args = 0..=1, default_missing_value = DEFAULT_MCP_ADDR, global = true)]
     mcp_http: Option<SocketAddr>,
 
-    /// When MCP clients may enable the robot [default: from config, normally simulator]
+    /// Restrict when MCP clients may enable the robot [default: always]
     #[arg(
         long,
         value_enum,
         value_name = "POLICY",
         global = true,
-        env = "CONDUCTOR_MCP_ENABLE"
+        env = "DUCTAPE_MCP_ENABLE"
     )]
     mcp_enable: Option<EnablePolicy>,
 
-    /// Longest an MCP client can keep the robot enabled with one call [default: 150]
+    /// Time-limit MCP enables to this many seconds [default: untimed]
     #[arg(long, value_name = "SECONDS", global = true)]
     mcp_max_enable: Option<u64>,
 
@@ -105,10 +106,10 @@ struct RunArgs {
 }
 
 fn init_logging() {
-    let filter = EnvFilter::try_from_env("CONDUCTOR_LOG")
+    let filter = EnvFilter::try_from_env("DUCTAPE_LOG")
         .or_else(|_| EnvFilter::try_from_default_env())
         .unwrap_or_else(|_| EnvFilter::new("info,ds=info"));
-    // Always stderr: stdout carries the MCP protocol in `conductor mcp`
+    // Always stderr: stdout carries the MCP protocol in `ductape mcp`
     tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_writer(std::io::stderr)
@@ -119,27 +120,28 @@ fn mcp_setup() {
     let exe = std::env::current_exe()
         .ok()
         .map(|p| p.display().to_string())
-        .unwrap_or_else(|| "conductor".into());
+        .unwrap_or_else(|| "ductape".into());
     println!(
-        r#"Conductor speaks the Model Context Protocol, so AI agents can run the driver station.
+        r#"DucTape speaks the Model Context Protocol, so AI agents can run the driver station.
 
 Claude Code (headless, or add --gui to watch and take over):
-    claude mcp add conductor -- {exe} mcp
+    claude mcp add ductape -- {exe} mcp
 
 Claude Desktop, Cursor, VS Code and other clients (JSON config):
     {{
       "mcpServers": {{
-        "conductor": {{ "command": "{exe}", "args": ["mcp", "--gui"] }}
+        "ductape": {{ "command": "{exe}", "args": ["mcp", "--gui"] }}
       }}
     }}
 
-Attach an agent to a Conductor window you already have open:
+Attach an agent to a DucTape window you already have open:
     {exe} --mcp-http
-    claude mcp add --transport http conductor http://{DEFAULT_MCP_ADDR}/mcp
+    claude mcp add --transport http ductape http://{DEFAULT_MCP_ADDR}/mcp
 
-By default agents may only enable the WPILib simulator. Pass --mcp-enable always
-(or set mcp.enable_policy in {config}) to let them enable real robots.
-Every MCP enable is timed; Conductor disables the robot when it runs out."#,
+Agents have full control by default, and their enables last until disabled.
+To restrict them, pass --mcp-enable simulator (only the WPILib simulator) or
+--mcp-enable never, and --mcp-max-enable SECONDS to time-limit their enables.
+These can also be set under [mcp] in {config}."#,
         config = config::path()
             .map(|p| p.display().to_string())
             .unwrap_or_else(|| "the config file".into()),
@@ -150,7 +152,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     if let Some(path) = &cli.run.config {
         // SAFETY: still single-threaded; config::path reads this
-        unsafe { std::env::set_var("CONDUCTOR_CONFIG", path) };
+        unsafe { std::env::set_var("DUCTAPE_CONFIG", path) };
     }
     if matches!(cli.command, Some(Command::McpSetup)) {
         mcp_setup();
@@ -181,7 +183,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
     if want_gui {
         tinyfiledialogs::message_box_ok(
             "Unsupported Environment",
-            "The Conductor Driver Station is not supported on Windows. Please use the NI Driver Station instead.",
+            "The DucTape Driver Station is not supported on Windows. Please use the NI Driver Station instead.",
             tinyfiledialogs::MessageBoxIcon::Error,
         );
         anyhow::bail!("Windows is not supported");
@@ -207,7 +209,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
         opts.enable_policy = policy;
     }
     if let Some(secs) = args.mcp_max_enable {
-        opts.max_enable = Duration::from_secs(secs.max(1));
+        opts.max_enable = Some(Duration::from_secs(secs.max(1)));
     }
     let mcp_http = match args.mcp_http {
         Some(addr) => Some(addr),
@@ -222,7 +224,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .thread_name("conductor")
+        .thread_name("ductape")
         .build()?;
     let _guard = runtime.enter();
 
@@ -253,7 +255,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
     } else {
         if stdio.is_none() {
             eprintln!(
-                "Conductor is running headless. Open {} in a browser.",
+                "DucTape is running headless. Open {} in a browser.",
                 servers.ui_url()
             );
         }

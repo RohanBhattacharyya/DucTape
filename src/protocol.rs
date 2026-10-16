@@ -92,7 +92,7 @@ pub struct JoystickDevice {
     /// Stable id for this device while it stays plugged in
     pub id: Uuid,
     pub name: String,
-    /// True for Conductor's built-in virtual joystick, which MCP clients can drive
+    /// True for DucTape's built-in virtual joystick, which MCP clients can drive
     #[serde(rename = "virtual")]
     pub is_virtual: bool,
 }
@@ -119,7 +119,7 @@ pub struct VirtualJoystickState {
 pub struct Snapshot {
     pub team_number: u32,
     pub use_usb: bool,
-    /// The address Conductor is sending control packets to
+    /// The address DucTape is sending control packets to
     pub target_address: String,
     pub mode: Mode,
     pub alliance: AllianceStation,
@@ -146,7 +146,7 @@ pub struct Snapshot {
     pub physical_joysticks: bool,
     /// Enter/Space are handled globally by the backend, regardless of window focus
     pub backend_keybinds: bool,
-    /// If a timed enable is active, milliseconds until Conductor disables the robot
+    /// If a timed enable is active, milliseconds until DucTape disables the robot
     pub auto_disable_in_ms: Option<u64>,
     /// Who last changed the enable state: "ui", "hotkey", "mcp" or "safety"
     pub last_enable_change_by: Option<String>,
@@ -165,7 +165,7 @@ pub enum ServerMessage {
         line: ConsoleLine,
     },
     ConsoleCleared,
-    /// Static information about this Conductor instance
+    /// Static information about this DucTape instance
     Info(Info),
     /// A command from this client failed
     Error {
@@ -180,7 +180,8 @@ pub struct Info {
     pub mcp_url: Option<String>,
     /// When MCP clients may enable the robot
     pub mcp_enable_policy: crate::config::EnablePolicy,
-    pub mcp_max_enable_secs: u64,
+    /// If set, the longest an MCP enable lasts. Null means MCP enables are untimed
+    pub mcp_max_enable_secs: Option<u64>,
 }
 
 /// Messages from the web UI to the backend

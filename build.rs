@@ -1,6 +1,6 @@
 //! Builds the web UI (`ui/`) with npm so that `cargo build` is all anyone needs to run.
 //!
-//! Set `CONDUCTOR_SKIP_UI_BUILD=1` to use whatever is already in `ui/dist` (packagers who build
+//! Set `DUCTAPE_SKIP_UI_BUILD=1` to use whatever is already in `ui/dist` (packagers who build
 //! the UI separately, or Rust-only development). Without npm, a placeholder page is embedded and
 //! everything except the web UI (including MCP) still works.
 
@@ -8,10 +8,10 @@ use std::path::Path;
 use std::process::Command;
 
 const PLACEHOLDER: &str = r#"<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Conductor</title></head>
+<html lang="en"><head><meta charset="utf-8"><title>DucTape</title></head>
 <body style="font-family:sans-serif;background:#222;color:#eee;padding:2rem">
-<h1>Conductor's web UI was not built</h1>
-<p>Install Node.js 20 or newer and rebuild Conductor. The MCP server works without it.</p>
+<h1>DucTape's web UI was not built</h1>
+<p>Install Node.js 20 or newer and rebuild DucTape. The MCP server works without it.</p>
 </body></html>
 "#;
 
@@ -50,9 +50,9 @@ fn main() {
     ] {
         println!("cargo::rerun-if-changed={path}");
     }
-    println!("cargo::rerun-if-env-changed=CONDUCTOR_SKIP_UI_BUILD");
+    println!("cargo::rerun-if-env-changed=DUCTAPE_SKIP_UI_BUILD");
 
-    if std::env::var_os("CONDUCTOR_SKIP_UI_BUILD").is_some_and(|v| v != "0") {
+    if std::env::var_os("DUCTAPE_SKIP_UI_BUILD").is_some_and(|v| v != "0") {
         placeholder(&dist);
         return;
     }
@@ -80,6 +80,6 @@ fn main() {
         }
     }
     if !run(ui, &["run", "build"]) {
-        panic!("`npm run build` failed in ui/ (set CONDUCTOR_SKIP_UI_BUILD=1 to skip)");
+        panic!("`npm run build` failed in ui/ (set DUCTAPE_SKIP_UI_BUILD=1 to skip)");
     }
 }

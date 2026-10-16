@@ -90,7 +90,7 @@ pub fn run(ui_url: &str, on_ready: impl FnOnce(GuiHandle)) -> anyhow::Result<()>
         })
         .unwrap_or(LogicalSize::new(1100.0, 460.0));
 
-    let main = open(&event_loop, &proxy, "Conductor DS", ui_url, main_size)?;
+    let main = open(&event_loop, &proxy, "DucTape DS", ui_url, main_size)?;
     let main_id = main.window.id();
     let console_url = format!("{ui_url}/console");
     let console_size = LogicalSize::new(650.0, 650.0);

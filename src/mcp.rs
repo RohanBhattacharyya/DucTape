@@ -6,7 +6,7 @@
 //! - disabling and e-stopping are always allowed
 //! - enabling follows the configured [`EnablePolicy`] (simulator only by default), and requires
 //!   communication and running robot code
-//! - every MCP enable is timed and Conductor disables the robot when it runs out
+//! - every MCP enable is timed and DucTape disables the robot when it runs out
 
 use std::time::Duration;
 
@@ -41,12 +41,12 @@ const MAX_CONSOLE_LINES: usize = 1000;
 const MAX_HOLD: Duration = Duration::from_secs(10);
 
 const INSTRUCTIONS: &str = "\
-Conductor is a driver station for FIRST Robotics Competition robots. These tools control a real \
+DucTape is a driver station for FIRST Robotics Competition robots. These tools control a real \
 robot or the WPILib simulator running on this machine.
 
 Start with get_status. The robot must have communication (comms) and running robot code before \
-it can be enabled. Enabling over MCP is restricted by the user's policy (see get_status: \
-mcp_enable_policy) and every enable is timed: Conductor disables the robot automatically.
+it can be enabled. Enables last until disable is called, unless you pass duration_seconds (or \
+the user configured a limit; see get_status: mcp_max_enable_secs and mcp_enable_policy).
 
 Prefer run_mode for testing: it enables in a mode for a fixed time, then disables and returns the \
 console output. Use read_console with the returned next_seq to follow output incrementally. \
@@ -70,7 +70,7 @@ pub struct Ack {
     pub code: bool,
     pub simulator: bool,
     pub voltage: f32,
-    /// Milliseconds until Conductor disables the robot, if a timed enable is active
+    /// Milliseconds until DucTape disables the robot, if a timed enable is active
     pub auto_disable_in_ms: Option<u64>,
 }
 
@@ -96,8 +96,8 @@ pub struct StatusReport {
     #[serde(flatten)]
     pub state: Snapshot,
     pub mcp_enable_policy: EnablePolicy,
-    /// The longest an MCP client may keep the robot enabled with one call
-    pub mcp_max_enable_secs: u64,
+    /// If set, the longest an MCP enable lasts. Null means enables are untimed
+    pub mcp_max_enable_secs: Option<u64>,
     /// Why enabling over MCP would currently fail, or null if it would succeed
     pub enable_blocked_reason: Option<String>,
     /// Pass to read_console as `since` to get only output produced after this call
@@ -138,8 +138,8 @@ pub struct GameDataParams {
 pub struct EnableParams {
     /// Switch to this mode first. Defaults to the current mode
     pub mode: Option<Mode>,
-    /// How long to stay enabled before Conductor disables the robot. Defaults to, and is capped
-    /// at, the user's maximum (see get_status)
+    /// Disable the robot automatically after this many seconds. Omit to stay enabled until
+    /// disable is called (unless the user configured a limit, see get_status)
     pub duration_seconds: Option<f64>,
 }
 
@@ -278,7 +278,7 @@ pub struct TestPromptParams {
 fn secs(value: Option<f64>, default: Duration, max: Duration) -> Result<Duration, String> {
     match value {
         None => Ok(default.min(max)),
-        Some(v) if v.is_finite() && v > 0.0 => Ok(Duration::from_secs_f64(v).min(max)),
+        Some(v) if v.is_finite() && v > 0.0 => Ok(Duration::from_secs_f64(v.min(1e9)).min(max)),
         Some(v) => Err(format!(
             "duration must be a positive number of seconds, got {v}"
         )),
@@ -286,15 +286,15 @@ fn secs(value: Option<f64>, default: Duration, max: Duration) -> Result<Duration
 }
 
 #[derive(Clone)]
-pub struct ConductorMcp {
+pub struct DucTapeMcp {
     ctrl: Controller,
     tool_router: ToolRouter<Self>,
     prompt_router: PromptRouter<Self>,
 }
 
-impl ConductorMcp {
-    pub fn new(ctrl: Controller) -> ConductorMcp {
-        ConductorMcp {
+impl DucTapeMcp {
+    pub fn new(ctrl: Controller) -> DucTapeMcp {
+        DucTapeMcp {
             ctrl,
             tool_router: Self::tool_router(),
             prompt_router: Self::prompt_router(),
@@ -309,7 +309,7 @@ impl ConductorMcp {
         StatusReport {
             state: self.ctrl.snapshot(),
             mcp_enable_policy: self.ctrl.enable_policy(),
-            mcp_max_enable_secs: self.ctrl.max_enable().as_secs(),
+            mcp_max_enable_secs: self.ctrl.max_enable().map(|d| d.as_secs()),
             enable_blocked_reason: self.ctrl.can_enable(Source::Mcp).err(),
             console_next_seq: self.ctrl.console_next_seq(),
         }
@@ -327,7 +327,7 @@ impl ConductorMcp {
 }
 
 #[tool_router]
-impl ConductorMcp {
+impl DucTapeMcp {
     /// Get the full driver station state: connection, robot code, mode, enable state, battery
     /// voltage, alliance, joysticks, and whether MCP is currently allowed to enable the robot.
     #[tool(annotations(title = "Get status", read_only_hint = true))]
@@ -335,7 +335,7 @@ impl ConductorMcp {
         Json(self.status_report())
     }
 
-    /// Set the team number. Conductor connects to that team's robot at 10.TE.AM.2 and disables
+    /// Set the team number. DucTape connects to that team's robot at 10.TE.AM.2 and disables
     /// the robot while switching.
     #[tool(annotations(title = "Set team number", idempotent_hint = true))]
     async fn set_team_number(
@@ -388,25 +388,26 @@ impl ConductorMcp {
         Ok(self.ack(format!("Game data is {:?}", p.game_data)))
     }
 
-    /// Enable the robot so it runs and can move. Requires robot communication, running robot
-    /// code, and permission from the user's MCP enable policy. The robot is disabled
-    /// automatically after duration_seconds (or the user's maximum).
+    /// Enable the robot so it runs and can move. Requires robot communication and running robot
+    /// code. It stays enabled until disable is called, or for duration_seconds if given.
     #[tool(annotations(title = "Enable robot", destructive_hint = true))]
     async fn enable(&self, Parameters(p): Parameters<EnableParams>) -> Result<Json<Ack>, String> {
-        let duration = secs(
-            p.duration_seconds,
-            self.ctrl.max_enable(),
-            self.ctrl.max_enable(),
-        )?;
+        let duration = p
+            .duration_seconds
+            .map(|d| secs(Some(d), Duration::MAX, Duration::MAX))
+            .transpose()?;
         self.ctrl.can_enable(Source::Mcp)?;
         if let Some(mode) = p.mode {
             self.ctrl.set_mode(mode, Source::Mcp);
         }
-        let duration = self.ctrl.enable(Source::Mcp, Some(duration))?;
-        Ok(self.ack(format!(
-            "Robot enabled; Conductor will disable it in {:.1}s",
-            duration.unwrap_or_default().as_secs_f64()
-        )))
+        let duration = self.ctrl.enable(Source::Mcp, duration)?;
+        Ok(self.ack(match duration {
+            Some(d) => format!(
+                "Robot enabled; it will be disabled in {:.1}s",
+                d.as_secs_f64()
+            ),
+            None => "Robot enabled until disable is called".to_string(),
+        }))
     }
 
     /// Disable the robot. Always allowed.
@@ -448,24 +449,29 @@ impl ConductorMcp {
         &self,
         Parameters(p): Parameters<RunModeParams>,
     ) -> Result<Json<RunReport>, String> {
-        let max = self.ctrl.max_enable();
+        let max = self.ctrl.max_enable().unwrap_or(Duration::MAX);
         let duration = secs(Some(p.duration_seconds), max, max)?;
         self.ctrl.can_enable(Source::Mcp)?;
         let start_seq = self.ctrl.console_next_seq();
         self.ctrl.set_mode(p.mode, Source::Mcp);
-        self.ctrl
-            .enable(Source::Mcp, Some(duration + Duration::from_millis(500)))?;
+        self.ctrl.enable(Source::Mcp, Some(duration))?;
         let started = std::time::Instant::now();
 
-        // Stops when anything other than the clock ends the run
-        let (stopped_early, state) = self
+        // The timed enable ends the run; anything else ending it first means it stopped early
+        let (_, state) = self
             .ctrl
-            .wait_until(duration, |s| !s.enabled || !s.comms || !s.code)
+            .wait_until(duration + Duration::from_secs(1), |s| {
+                !s.enabled || !s.comms || !s.code
+            })
             .await;
         let ran_for = started.elapsed();
         self.ctrl.disable(Source::Mcp);
+        let completed = ran_for + Duration::from_millis(100) >= duration
+            && state.comms
+            && state.code
+            && !state.estopped;
 
-        let stopped_because = stopped_early.then(|| {
+        let stopped_because = (!completed).then(|| {
             if state.estopped {
                 "the robot was emergency stopped".to_string()
             } else if !state.comms {
@@ -482,7 +488,7 @@ impl ConductorMcp {
         let limit = p.max_console_lines.unwrap_or(200).min(MAX_CONSOLE_LINES);
         let (console, _, console_truncated) = self.ctrl.console_since(start_seq, limit, |_| true);
         Ok(Json(RunReport {
-            completed: !stopped_early,
+            completed,
             stopped_because,
             ran_for_seconds: (ran_for.as_secs_f64() * 100.0).round() / 100.0,
             console,
@@ -526,7 +532,7 @@ impl ConductorMcp {
         }))
     }
 
-    /// Read robot console output (stdout, WPILib errors and warnings, and Conductor notices).
+    /// Read robot console output (stdout, WPILib errors and warnings, and DucTape notices).
     /// Use since with the next_seq from a previous call to read incrementally.
     #[tool(annotations(title = "Read console", read_only_hint = true))]
     async fn read_console(
@@ -661,7 +667,7 @@ impl ConductorMcp {
 }
 
 #[prompt_router]
-impl ConductorMcp {
+impl DucTapeMcp {
     /// Test robot code by running it in a mode and reporting what happened.
     #[prompt(name = "test_robot_code")]
     async fn test_robot_code(
@@ -673,7 +679,7 @@ impl ConductorMcp {
         vec![PromptMessage::new_text(
             Role::User,
             format!(
-                "Use the Conductor driver station tools to test the robot code.\n\
+                "Use the DucTape driver station tools to test the robot code.\n\
                  1. Call get_status. If there is no communication or no robot code, explain what \
                     is missing (for a simulation, start it with `./gradlew simulateJava` or \
                     `simulateNative`) and use wait_for with code_running.\n\
@@ -690,7 +696,7 @@ impl ConductorMcp {
     async fn diagnose_connection(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
             Role::User,
-            "Use the Conductor tools to diagnose why the driver station can't control the robot. \
+            "Use the DucTape tools to diagnose why the driver station can't control the robot. \
              Call get_status and check the team number and target_address, whether USB is in \
              use, whether communication is established, whether robot code is running, and the \
              recent console output (read_console). Explain the likely cause and how to fix it. \
@@ -700,13 +706,13 @@ impl ConductorMcp {
     }
 }
 
-const STATUS_URI: &str = "conductor://status";
-const CONSOLE_URI: &str = "conductor://console";
-const JOYSTICKS_URI: &str = "conductor://joysticks";
+const STATUS_URI: &str = "ductape://status";
+const CONSOLE_URI: &str = "ductape://console";
+const JOYSTICKS_URI: &str = "ductape://joysticks";
 
 #[tool_handler(router = self.tool_router)]
 #[prompt_handler(router = self.prompt_router)]
-impl ServerHandler for ConductorMcp {
+impl ServerHandler for DucTapeMcp {
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(
             ServerCapabilities::builder()
@@ -716,8 +722,8 @@ impl ServerHandler for ConductorMcp {
                 .build(),
         )
         .with_server_info(
-            Implementation::new("conductor", env!("CARGO_PKG_VERSION"))
-                .with_title("Conductor FRC Driver Station"),
+            Implementation::new("ductape", env!("CARGO_PKG_VERSION"))
+                .with_title("DucTape Driver Station"),
         )
         .with_instructions(INSTRUCTIONS)
     }
@@ -789,7 +795,7 @@ impl ServerHandler for ConductorMcp {
 /// Serves MCP on stdin/stdout until the client disconnects
 pub async fn serve_stdio(ctrl: Controller) -> anyhow::Result<()> {
     use rmcp::ServiceExt;
-    let service = ConductorMcp::new(ctrl)
+    let service = DucTapeMcp::new(ctrl)
         .serve(rmcp::transport::stdio())
         .await?;
     service.waiting().await?;
@@ -817,6 +823,7 @@ mod tests {
     async fn setup(
         robot: &FakeRobot,
         policy: EnablePolicy,
+        max_enable: Option<Duration>,
     ) -> (Controller, RunningService<RoleClient, TestClient>) {
         let ctrl = Controller::start(
             Options {
@@ -825,14 +832,14 @@ mod tests {
                 robot_ip: Some(Ipv4Addr::LOCALHOST.into()),
                 alliance: AllianceStation::default(),
                 enable_policy: policy,
-                max_enable: Duration::from_secs(5),
+                max_enable,
                 persist: false,
                 ports: Some(robot.ports()),
             },
             Config::default(),
         );
         let (server_io, client_io) = tokio::io::duplex(1 << 16);
-        let server = ConductorMcp::new(ctrl.clone());
+        let server = DucTapeMcp::new(ctrl.clone());
         tokio::spawn(async move {
             if let Ok(running) = server.serve(server_io).await {
                 let _ = running.waiting().await;
@@ -869,7 +876,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn agent_drives_a_robot_end_to_end() {
         let robot = FakeRobot::start();
-        let (_ctrl, client) = setup(&robot, EnablePolicy::Always).await;
+        let (_ctrl, client) = setup(&robot, EnablePolicy::default(), None).await;
 
         let tools: Vec<_> = client
             .list_all_tools()
@@ -951,7 +958,16 @@ mod tests {
             sim.last_control.as_ref().is_some_and(|p| !p.enabled())
         }));
 
-        // Timed enable expires on its own
+        // By default an enable lasts until disable is called
+        let (err, ack) = call(&client, "enable", json!({"mode": "teleoperated"})).await;
+        assert!(!err && ack["enabled"] == true, "{ack}");
+        assert_eq!(ack["auto_disable_in_ms"], Value::Null, "{ack}");
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        let (_, status) = call(&client, "get_status", json!({})).await;
+        assert_eq!(status["enabled"], true);
+        call(&client, "disable", json!({})).await;
+
+        // A timed enable expires on its own
         let (err, ack) = call(
             &client,
             "enable",
@@ -973,7 +989,8 @@ mod tests {
             json!({"contains": "timed enable", "limit": 5}),
         )
         .await;
-        assert_eq!(console["lines"].as_array().unwrap().len(), 1, "{console}");
+        // One from run_mode, one from the timed enable
+        assert_eq!(console["lines"].as_array().unwrap().len(), 2, "{console}");
 
         let status = client
             .read_resource(ReadResourceRequestParams::new(STATUS_URI))
@@ -993,7 +1010,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn default_policy_refuses_real_robots() {
         let robot = FakeRobot::start();
-        let (ctrl, client) = setup(&robot, EnablePolicy::Simulator).await;
+        let (ctrl, client) = setup(&robot, EnablePolicy::Simulator, None).await;
         call(&client, "wait_for", json!({"condition": "code_running"})).await;
 
         let (err, msg) = call(&client, "enable", json!({})).await;
@@ -1014,6 +1031,31 @@ mod tests {
         )
         .await;
         assert!(err, "out of range buttons are rejected");
+        client.cancel().await.unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn configured_limit_times_enables() {
+        let robot = FakeRobot::start();
+        let (_ctrl, client) = setup(
+            &robot,
+            EnablePolicy::Always,
+            Some(Duration::from_millis(500)),
+        )
+        .await;
+        call(&client, "wait_for", json!({"condition": "code_running"})).await;
+
+        let (err, ack) = call(&client, "enable", json!({"duration_seconds": 60})).await;
+        assert!(!err, "{ack}");
+        let remaining = ack["auto_disable_in_ms"].as_u64().expect("enable is timed");
+        assert!(remaining <= 500, "{ack}");
+        let (_, wait) = call(
+            &client,
+            "wait_for",
+            json!({"condition": "disabled", "timeout_seconds": 3}),
+        )
+        .await;
+        assert_eq!(wait["satisfied"], true);
         client.cancel().await.unwrap();
     }
 }

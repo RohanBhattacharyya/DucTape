@@ -1,9 +1,9 @@
 {
-  "name": "conductor-ui",
+  "name": "ductape-ui",
   "private": true,
   "version": "0.2.0",
   "type": "module",
-  "description": "Web UI for the Conductor driver station",
+  "description": "Web UI for the DucTape driver station",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

@@ -9,7 +9,13 @@ type Tab = (typeof TABS)[number];
 
 export function App() {
   const state = useBackend();
-  const [tab, setTab] = useState<Tab>("Control");
+  const [tab, setTabState] = useState<Tab>(
+    () => TABS.find((t) => `#${t.toLowerCase()}` === location.hash) ?? "Control",
+  );
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    history.replaceState(null, "", `#${t.toLowerCase()}`);
+  };
   const [warningDismissed, setWarningDismissed] = useState(false);
   const s = state.snapshot;
 
@@ -33,7 +39,7 @@ export function App() {
   if (!s) {
     return (
       <div className="d-flex h-100 align-items-center justify-content-center text-body-secondary">
-        {state.connected ? "Loading…" : "Connecting to Conductor…"}
+        {state.connected ? "Loading…" : "Connecting to DucTape…"}
       </div>
     );
   }
@@ -48,7 +54,11 @@ export function App() {
             </button>
           </li>
         ))}
-        {!state.connected && <li className="ms-auto align-self-center text-danger small pe-2">Reconnecting…</li>}
+        <li className="ms-auto align-self-center d-flex align-items-center gap-2 pe-2 small">
+          {!state.connected && <span className="text-danger">Reconnecting…</span>}
+          <img src="/favicon.svg" alt="" width={22} height={22} />
+          <span className="text-body-secondary">DucTape</span>
+        </li>
       </ul>
 
       {localKeys && !warningDismissed && (

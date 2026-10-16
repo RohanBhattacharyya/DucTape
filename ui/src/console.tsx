@@ -28,7 +28,7 @@ function ConsoleWindow() {
           value={filter}
           onChange={(ev) => setFilter(ev.target.value)}
         />
-        {(["stdout", "error", "warning", "conductor"] as LineKind[]).map((kind) => (
+        {(["stdout", "error", "warning", "ductape"] as LineKind[]).map((kind) => (
           <button
             key={kind}
             type="button"

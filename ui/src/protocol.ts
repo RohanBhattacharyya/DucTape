@@ -64,10 +64,10 @@ export interface Info {
   version: string;
   mcp_url: string | null;
   mcp_enable_policy: EnablePolicy;
-  mcp_max_enable_secs: number;
+  mcp_max_enable_secs: number | null;
 }
 
-export type LineKind = "stdout" | "error" | "warning" | "conductor";
+export type LineKind = "stdout" | "error" | "warning" | "ductape";
 
 export interface ConsoleLine {
   seq: number;

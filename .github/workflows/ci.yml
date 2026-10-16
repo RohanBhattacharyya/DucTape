@@ -1,7 +1,6 @@
 name: CI
 on:
   push:
-    branches: [next]
   pull_request:
   workflow_dispatch:
 
@@ -12,7 +11,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   # The UI is built once up front by npm
-  CONDUCTOR_SKIP_UI_BUILD: "1"
+  DUCTAPE_SKIP_UI_BUILD: "1"
 
 jobs:
   linux:

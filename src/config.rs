@@ -1,4 +1,4 @@
-//! Persistent settings, stored at `~/.config/conductor/conductor.toml` on Linux.
+//! Persistent settings, stored at `~/.config/ductape/ductape.toml` on Linux.
 
 use std::path::PathBuf;
 
@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::protocol::AllianceStation;
 
-const APP: &str = "conductor";
+const APP: &str = "ductape";
 
 /// When MCP clients are allowed to enable the robot. Disabling and e-stopping are always allowed.
 #[derive(
@@ -18,30 +18,20 @@ pub enum EnablePolicy {
     /// MCP clients can never enable the robot
     Never,
     /// Only while connected to the WPILib simulator on this machine
-    #[default]
     Simulator,
-    /// Also real robots. Make sure someone can reach the e-stop!
+    /// Real robots and the simulator (the default)
+    #[default]
     Always,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(default)]
 pub struct McpConfig {
     pub enable_policy: EnablePolicy,
-    /// Upper bound on how long an MCP client can keep the robot enabled with one call
-    pub max_enable_secs: u64,
+    /// If set, MCP enables are timed and last at most this long. Unset means untimed
+    pub max_enable_secs: Option<u64>,
     /// Serve MCP over Streamable HTTP on this address when the GUI runs, e.g. "127.0.0.1:7341"
     pub http_addr: Option<String>,
-}
-
-impl Default for McpConfig {
-    fn default() -> Self {
-        McpConfig {
-            enable_policy: EnablePolicy::Simulator,
-            max_enable_secs: 150,
-            http_addr: None,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
@@ -53,9 +43,9 @@ pub struct Config {
     pub mcp: McpConfig,
 }
 
-/// The config file: `$CONDUCTOR_CONFIG` (or `--config`), else the platform default
+/// The config file: `$DUCTAPE_CONFIG` (or `--config`), else the platform default
 pub fn path() -> Option<PathBuf> {
-    match std::env::var_os("CONDUCTOR_CONFIG") {
+    match std::env::var_os("DUCTAPE_CONFIG") {
         Some(path) => Some(path.into()),
         None => confy::get_configuration_file_path(APP, APP).ok(),
     }
@@ -65,6 +55,17 @@ pub fn load() -> Config {
     let Some(path) = path() else {
         return Config::default();
     };
+    // Carry settings over from Conductor, which DucTape revives
+    if !path.exists()
+        && std::env::var_os("DUCTAPE_CONFIG").is_none()
+        && let Ok(legacy) = confy::get_configuration_file_path("conductor", "conductor")
+        && legacy.exists()
+        && let Ok(cfg) = confy::load_path::<Config>(&legacy)
+    {
+        tracing::info!("importing settings from {}", legacy.display());
+        store(&cfg);
+        return cfg;
+    }
     match confy::load_path(&path) {
         Ok(cfg) => cfg,
         Err(e) => {
@@ -94,9 +95,9 @@ mod tests {
     }
 
     fn toml_from_str(s: &str) -> Config {
-        let dir = std::env::temp_dir().join(format!("conductor-cfg-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("ductape-cfg-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("conductor.toml");
+        let path = dir.join("ductape.toml");
         std::fs::write(&path, s).unwrap();
         let cfg = confy::load_path(&path).unwrap();
         std::fs::remove_dir_all(dir).unwrap();

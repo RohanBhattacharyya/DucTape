@@ -5,7 +5,7 @@ station protocol (2020+ roboRIO / WPILib simulator).
 
 This is the `ds` crate originally published by Kaitlyn Kenwell
 ([gitlab.com/Redrield/ds-rs](https://gitlab.com/Redrield/ds-rs)), vendored into
-Conductor and ported to tokio 1. Compared to `ds` 1.x it:
+DucTape (a revival of Conductor, which it was written for) and ported to tokio 1. Compared to `ds` 1.x it:
 
 - runs on a single dedicated I/O thread with no `block_on` in the public API
 - disables the robot when communications are lost (it previously stayed enabled)

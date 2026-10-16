@@ -428,36 +428,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "conductor"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "confy",
- "core-foundation",
- "ds",
- "futures-util",
- "gilrs",
- "human-panic",
- "mime_guess",
- "rmcp",
- "rust-embed",
- "schemars",
- "serde",
- "serde_json",
- "tao",
- "tinyfiledialogs",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "wry",
- "x11",
-]
-
-[[package]]
 name = "confy"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -814,6 +784,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd1511a7b6a56299bd043a9c167a6d2bfb37bf84a6dfceaba651168adfb43c87"
 dependencies = [
  "dtoa",
+]
+
+[[package]]
+name = "ductape"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "confy",
+ "core-foundation",
+ "ds",
+ "futures-util",
+ "gilrs",
+ "human-panic",
+ "mime_guess",
+ "rmcp",
+ "rust-embed",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tao",
+ "tinyfiledialogs",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "wry",
+ "x11",
 ]
 
 [[package]]

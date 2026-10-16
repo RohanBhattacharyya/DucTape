@@ -15,8 +15,8 @@ pub enum LineKind {
     /// Reported through the WPILib error API
     Error,
     Warning,
-    /// A notice from Conductor itself, e.g. "Robot disabled by MCP client"
-    Conductor,
+    /// A notice from DucTape itself, e.g. "Robot disabled by MCP client"
+    DucTape,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, PartialEq)]

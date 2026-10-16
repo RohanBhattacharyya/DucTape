@@ -66,7 +66,9 @@ function VirtualState({ state }: { state: VirtualJoystickState }) {
             {b}
           </span>
         ))}
-        <span className="badge bg-secondary">POV {state.pov < 0 ? "–" : `${state.pov}°`}</span>
+        <span className={`badge ${state.pov >= 0 ? "bg-primary" : "bg-secondary"}`}>
+          POV {state.pov < 0 ? "–" : `${state.pov}°`}
+        </span>
       </div>
     </div>
   );

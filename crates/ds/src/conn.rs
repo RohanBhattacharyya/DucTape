@@ -63,7 +63,7 @@ async fn bind_udp(addr: SocketAddr, error: &Mutex<Option<String>>) -> Option<Udp
         Err(e) => {
             let msg = if e.kind() == std::io::ErrorKind::AddrInUse {
                 format!(
-                    "UDP port {} is in use: another driver station (or Conductor) is already running",
+                    "UDP port {} is in use: another driver station (or DucTape) is already running",
                     addr.port()
                 )
             } else {

@@ -27,10 +27,10 @@ fn hook(info: &PanicHookInfo<'_>) {
 fn message(file: Option<&Path>) -> String {
     format!(
         "Well, this is embarrassing.\n\n\
-         Conductor had a problem and crashed. To help diagnose the problem you can send a crash report.\n\n\
+         DucTape had a problem and crashed. To help diagnose the problem you can send a crash report.\n\n\
          A report file has been generated at \"{}\". Submit an issue and include the details in the \
          report file so the error can be diagnosed.\n\n\
-         Conductor does not perform automated error collection. Improving it relies on people \
+         DucTape does not perform automated error collection. Improving it relies on people \
          submitting reports.\n\nThank you kindly!",
         file.map_or_else(
             || "<Failed to store file to disk>".to_string(),

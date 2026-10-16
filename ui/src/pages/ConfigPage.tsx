@@ -3,9 +3,9 @@ import { send } from "../backend";
 import type { BackendState } from "../backend";
 
 const POLICY_TEXT = {
-  never: "Agents cannot enable the robot.",
-  simulator: "Agents may enable the WPILib simulator only.",
-  always: "Agents may enable real robots. Keep the e-stop within reach!",
+  never: "Agents cannot enable the robot (--mcp-enable never).",
+  simulator: "Agents may enable the WPILib simulator only (--mcp-enable simulator).",
+  always: "Agents have full control, including enabling real robots. Keep the e-stop within reach!",
 };
 
 /** A text field that applies its value on Enter or when it loses focus */
@@ -105,21 +105,23 @@ export function ConfigPage({ state }: { state: BackendState }) {
               {info && (
                 <>
                   <p className="mb-2">
-                    {POLICY_TEXT[info.mcp_enable_policy]} Timed enables last at most{" "}
-                    {info.mcp_max_enable_secs}s.
+                    {POLICY_TEXT[info.mcp_enable_policy]}{" "}
+                    {info.mcp_max_enable_secs == null
+                      ? "Agent enables last until disabled, unless the agent asks for a time limit."
+                      : `Agent enables are disabled after at most ${info.mcp_max_enable_secs}s.`}
                   </p>
                   {info.mcp_url ? (
                     <p className="mb-2">
                       Listening at <code className="user-select-all">{info.mcp_url}</code>
                       <br />
                       <code className="user-select-all">
-                        claude mcp add --transport http conductor {info.mcp_url}
+                        claude mcp add --transport http ductape {info.mcp_url}
                       </code>
                     </p>
                   ) : (
                     <p className="mb-2">
-                      Launch with <code>conductor --mcp-http</code> to let agents attach to this window, or
-                      run <code>conductor mcp-setup</code> for other options.
+                      Launch with <code>ductape --mcp-http</code> to let agents attach to this window, or
+                      run <code>ductape mcp-setup</code> for other options.
                     </p>
                   )}
                 </>
@@ -129,7 +131,14 @@ export function ConfigPage({ state }: { state: BackendState }) {
               </p>
             </div>
           </div>
-          {info && <div className="text-body-secondary small mt-2">Conductor {info.version}</div>}
+          {info && (
+            <div className="text-body-secondary small mt-2">
+              DucTape Driver Station {info.version}, a revival of{" "}
+              <a href="https://github.com/Redrield/Conductor" target="_blank" rel="noreferrer">
+                Conductor
+              </a>
+            </div>
+          )}
         </div>
       </div>
     </div>

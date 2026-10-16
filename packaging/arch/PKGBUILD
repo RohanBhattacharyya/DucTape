@@ -1,11 +1,11 @@
-# Maintainer: Conductor contributors
-pkgname=conductor-git
-_pkgname=conductor
+# Maintainer: DucTape contributors
+pkgname=ductape-git
+_pkgname=ductape
 pkgver=0.2.0
 pkgrel=1
 pkgdesc="Driver station for FRC robots, with MCP support for AI agents"
 arch=('x86_64' 'aarch64')
-url="https://github.com/Redrield/Conductor"
+url="https://github.com/RohanBhattacharyya/DucTape"
 license=('MPL-2.0')
 depends=('webkit2gtk-4.1' 'gtk3' 'systemd-libs' 'libx11' 'gcc-libs' 'glibc')
 makedepends=('git' 'cargo' 'nodejs' 'npm')
@@ -13,7 +13,7 @@ provides=("$_pkgname")
 conflicts=("$_pkgname")
 # makepkg's LTO flags turn bundled C code into GCC bytecode that the Rust linker can't read
 options=('!lto')
-source=("$_pkgname::git+$url.git#branch=next")
+source=("$_pkgname::git+$url.git")
 sha256sums=('SKIP')
 
 pkgver() {
@@ -36,13 +36,13 @@ build() {
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
   npm --prefix ui run build
-  CONDUCTOR_SKIP_UI_BUILD=1 cargo build --frozen --release
+  DUCTAPE_SKIP_UI_BUILD=1 cargo build --frozen --release
 }
 
 check() {
   cd "$_pkgname"
   export RUSTUP_TOOLCHAIN=stable
-  CONDUCTOR_SKIP_UI_BUILD=1 cargo test --frozen --workspace
+  DUCTAPE_SKIP_UI_BUILD=1 cargo test --frozen --workspace
 }
 
 package() {

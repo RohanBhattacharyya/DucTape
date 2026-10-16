@@ -7,5 +7,5 @@ ui/dist/
 # makepkg
 packaging/arch/src/
 packaging/arch/pkg/
-packaging/arch/conductor/
+packaging/arch/ductape/
 packaging/arch/*.pkg.tar.*

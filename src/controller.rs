@@ -26,7 +26,7 @@ pub enum Source {
     Ui,
     Hotkey,
     Mcp,
-    /// Conductor itself, e.g. after a controller was unplugged
+    /// DucTape itself, e.g. after a controller was unplugged
     Safety,
 }
 
@@ -56,7 +56,8 @@ pub struct Options {
     pub robot_ip: Option<IpAddr>,
     pub alliance: AllianceStation,
     pub enable_policy: EnablePolicy,
-    pub max_enable: Duration,
+    /// If set, MCP enables are timed and last at most this long
+    pub max_enable: Option<Duration>,
     /// Save team number / USB / alliance changes to the config file
     pub persist: bool,
     /// Only tests change these
@@ -71,7 +72,10 @@ impl Options {
             robot_ip: None,
             alliance: cfg.alliance,
             enable_policy: cfg.mcp.enable_policy,
-            max_enable: Duration::from_secs(cfg.mcp.max_enable_secs.max(1)),
+            max_enable: cfg
+                .mcp
+                .max_enable_secs
+                .map(|s| Duration::from_secs(s.max(1))),
             persist: true,
             ports: None,
         }
@@ -102,6 +106,7 @@ struct Local {
     last_published: Option<Arc<Snapshot>>,
     prev_comms: bool,
     prev_code: bool,
+    prev_simulator: bool,
     mcp_url: Option<String>,
 }
 
@@ -178,6 +183,7 @@ impl Controller {
                 last_published: None,
                 prev_comms: false,
                 prev_code: false,
+                prev_simulator: false,
                 mcp_url: None,
             }),
             opts,
@@ -195,7 +201,7 @@ impl Controller {
         tokio::spawn(poll(weak));
 
         controller.notice(format!(
-            "Conductor {} started, connecting to {}",
+            "DucTape {} started, connecting to {}",
             env!("CARGO_PKG_VERSION"),
             controller.0.ds.target_ip()
         ));
@@ -222,7 +228,7 @@ impl Controller {
         self.0.opts.enable_policy
     }
 
-    pub fn max_enable(&self) -> Duration {
+    pub fn max_enable(&self) -> Option<Duration> {
         self.0.opts.max_enable
     }
 
@@ -231,7 +237,7 @@ impl Controller {
             version: env!("CARGO_PKG_VERSION").to_string(),
             mcp_url: self.local().mcp_url.clone(),
             mcp_enable_policy: self.0.opts.enable_policy,
-            mcp_max_enable_secs: self.0.opts.max_enable.as_secs(),
+            mcp_max_enable_secs: self.0.opts.max_enable.map(|d| d.as_secs()),
         }
     }
 
@@ -306,11 +312,11 @@ impl Controller {
         }
     }
 
-    /// Adds a Conductor notice to the robot console
+    /// Adds a DucTape notice to the robot console
     pub fn notice(&self, text: impl Into<String>) {
         let text = text.into();
         tracing::info!("{text}");
-        self.0.hub.push(LineKind::Conductor, text);
+        self.0.hub.push(LineKind::DucTape, text);
     }
 
     fn update_config(&self, f: impl FnOnce(&mut Config)) {
@@ -395,14 +401,14 @@ impl Controller {
             match self.0.opts.enable_policy {
                 EnablePolicy::Never => {
                     return Err("Enabling over MCP is turned off (--mcp-enable never). \
-                         A person must enable the robot from the Conductor window."
+                         A person must enable the robot from the DucTape window."
                         .into());
                 }
                 EnablePolicy::Simulator if ds.ds_mode() != ds::DsMode::Simulation => {
                     return Err(
-                        "MCP clients may only enable the WPILib simulator, and Conductor \
+                        "MCP clients may only enable the WPILib simulator, and DucTape \
                          is connected to a real robot (or nothing). Start a simulation, or ask \
-                         the user to relaunch Conductor with --mcp-enable always."
+                         the user to relaunch DucTape with --mcp-enable always."
                             .into(),
                     );
                 }
@@ -412,8 +418,8 @@ impl Controller {
         let telemetry = ds.telemetry();
         if let Some(error) = ds.link_error() {
             return Err(format!(
-                "{error}. Close the other driver station, or attach to the running Conductor \
-                 window with `conductor --mcp-http` and an HTTP MCP connection."
+                "{error}. Close the other driver station, or attach to the running DucTape \
+                 window with `ductape --mcp-http` and an HTTP MCP connection."
             ));
         }
         if !telemetry.connected {
@@ -428,8 +434,9 @@ impl Controller {
         Ok(())
     }
 
-    /// Enables the robot. MCP enables always time out, after at most the configured maximum.
-    /// Returns how long the robot will stay enabled, if limited.
+    /// Enables the robot, disabling it again after `duration` if given. MCP enables are capped
+    /// at the configured maximum, if there is one. Returns how long the robot will stay enabled,
+    /// if limited.
     pub fn enable(
         &self,
         source: Source,
@@ -437,11 +444,10 @@ impl Controller {
     ) -> Result<Option<Duration>, String> {
         self.can_enable(source)?;
         let duration = match source {
-            Source::Mcp => Some(
-                duration
-                    .unwrap_or(self.0.opts.max_enable)
-                    .min(self.0.opts.max_enable),
-            ),
+            Source::Mcp => match (duration, self.0.opts.max_enable) {
+                (Some(d), Some(max)) => Some(d.min(max)),
+                (d, max) => d.or(max),
+            },
             _ => duration,
         };
         self.0.ds.enable();
@@ -499,7 +505,7 @@ impl Controller {
                 Source::Ui => "from the window",
                 Source::Hotkey => "space bar",
                 Source::Mcp => "by MCP client",
-                Source::Safety => "by Conductor",
+                Source::Safety => "by DucTape",
             }
         ));
         self.publish();
@@ -669,6 +675,15 @@ impl Controller {
                         local.last_enable_change_by = Some(Source::Safety);
                     }
                 }
+            }
+            let simulator = self.0.ds.ds_mode() == ds::DsMode::Simulation;
+            if simulator != local.prev_simulator {
+                local.prev_simulator = simulator;
+                notices.push(if simulator {
+                    "WPILib simulator detected, connecting to it".to_string()
+                } else {
+                    format!("Simulator closed, connecting to {}", self.0.ds.target_ip())
+                });
             }
             if telemetry.code_running != local.prev_code {
                 local.prev_code = telemetry.code_running;

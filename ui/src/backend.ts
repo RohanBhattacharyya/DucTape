@@ -11,7 +11,7 @@ export interface BackendState {
   error: string | null;
 }
 
-/** The WebSocket connection to the Conductor backend, with automatic reconnection. */
+/** The WebSocket connection to the DucTape backend, with automatic reconnection. */
 class Backend {
   private ws: WebSocket | null = null;
   private listeners = new Set<() => void>();
@@ -94,7 +94,7 @@ class Backend {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(command));
     } else {
-      this.showError("Not connected to the Conductor backend");
+      this.showError("Not connected to the DucTape backend");
     }
   }
 
@@ -112,6 +112,6 @@ export function useBackend(): BackendState {
 
 export const send = (command: ClientCommand) => backend.send(command);
 
-/** True when running inside Conductor's native window (which provides window.ipc) */
+/** True when running inside DucTape's native window (which provides window.ipc) */
 export const nativeIpc = (): { postMessage(msg: string): void } | undefined =>
   (window as unknown as { ipc?: { postMessage(msg: string): void } }).ipc;
