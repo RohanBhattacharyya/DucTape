@@ -1,59 +1,126 @@
+[workspace]
+members = [".", "crates/ds"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.88"
+repository = "https://github.com/Redrield/Conductor"
+
+[workspace.dependencies]
+tokio = "1.53"
+tracing = "0.1.41"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+
 [package]
 name = "conductor"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Kaitlyn Kenwell <redrield@gmail.com>"]
-edition = "2018"
-description = "A cross-platform driver station for FRC robots"
-license-file = "LICENSE"
+description = "A cross-platform driver station for FRC robots, with MCP support for AI agents"
+license = "MPL-2.0"
+homepage = "https://github.com/Redrield/Conductor"
+readme = "README.md"
+keywords = ["frc", "first", "robotics", "driver-station", "mcp"]
+categories = ["science::robotics", "command-line-utilities"]
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+build = "build.rs"
+exclude = ["/images", "/ui/node_modules", "/ui/dist"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["gui"]
+# Native windows (WebKitGTK on Linux, WKWebView on macOS) and global hotkeys.
+# Without it Conductor runs headless and serves its UI to a browser.
+gui = ["dep:wry", "dep:tao", "dep:x11", "dep:core-foundation"]
 
 [dependencies]
-web-view = { git = "https://github.com/Boscop/web-view#82d7cbc.git" }
-lazy_static = "1.4.0"
-rust-embed = "5.5.1"
-serde = { version = "1.0.106", features = ["derive"] }
-serde_json = "1.0.51"
-ds = "1.2.4"
-gilrs = "0.7.4"
-actix-web = "2.0.0"
-actix-rt = "1.1.0"
-mime_guess = "2.0.3"
-futures = "0.3.4"
-env_logger = "0.7.1"
-actix-web-actors = "2.0.0"
-actix = "0.9.0"
-log = "0.4.11"
-conquer-once = "0.2.1"
-uuid = { version = "0.8.1", features = ["v4"] }
-confy = "0.4.0"
-autopilot = "0.4.0"
-tinyfiledialogs = "3.3.0"
-human-panic = "1.0.3"
-glfw = "0.41.0"
+ds = { path = "crates/ds" }
+
+anyhow = "1.0.100"
+axum = { version = "0.8.9", features = ["ws"] }
+clap = { version = "4.6", features = ["derive", "env"] }
+confy = "2.0"
+futures-util = { version = "0.3.31", default-features = false, features = ["sink", "std"] }
+gilrs = "0.11.2"
+human-panic = "2.0.8"
+mime_guess = "2.0.5"
+rmcp = { version = "3.5.1", features = ["server", "macros", "schemars", "transport-io", "transport-streamable-http-server"] }
+rust-embed = "8.13"
+schemars = { version = "1.2", features = ["uuid1"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+tinyfiledialogs = "3.9.1"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal", "io-std"] }
+tokio-util = "0.7.16"
+tracing.workspace = true
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+uuid = { version = "1.28", features = ["v4", "serde"] }
+
+wry = { version = "0.57", optional = true }
+tao = { version = "0.37", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2.74"
-x11 = { version = "2.18.2", features = ["xlib", "xinput", "xrandr"] }
+x11 = { version = "2.21", features = ["xlib"], optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-libc = "0.2.74"
-core-graphics = "0.21.0"
-objc = "0.2.7"
-cocoa = "0.23.0"
-block = "0.1.6"
-core-foundation = "0.9.0"
+core-foundation = { version = "0.10.1", optional = true }
 
+[dev-dependencies]
+ds = { path = "crates/ds", features = ["testing"] }
+rmcp = { version = "3.5.1", features = ["client"] }
+
+[lints]
+workspace = true
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
+# `cargo deb` — https://github.com/kornelski/cargo-deb
+[package.metadata.deb]
+name = "conductor"
+maintainer = "Conductor contributors"
+section = "electronics"
+priority = "optional"
+depends = "$auto, libwebkit2gtk-4.1-0, libgtk-3-0"
+extended-description = """\
+Conductor is a driver station for FRC robots on Linux and macOS. It controls \
+robots and the WPILib simulator, and includes a Model Context Protocol server \
+so AI agents can operate the driver station too."""
+assets = [
+    ["target/release/conductor", "usr/bin/", "755"],
+    ["packaging/linux/io.github.redrield.Conductor.desktop", "usr/share/applications/", "644"],
+    ["packaging/linux/io.github.redrield.Conductor.metainfo.xml", "usr/share/metainfo/", "644"],
+    ["packaging/linux/conductor.svg", "usr/share/icons/hicolor/scalable/apps/io.github.redrield.Conductor.svg", "644"],
+    ["README.md", "usr/share/doc/conductor/README.md", "644"],
+]
+
+# `cargo generate-rpm` — https://github.com/cat-in-136/cargo-generate-rpm
+[package.metadata.generate-rpm]
+name = "conductor"
+license = "MPL-2.0"
+summary = "Driver station for FRC robots with MCP support"
+assets = [
+    { source = "target/release/conductor", dest = "/usr/bin/conductor", mode = "755" },
+    { source = "packaging/linux/io.github.redrield.Conductor.desktop", dest = "/usr/share/applications/io.github.redrield.Conductor.desktop", mode = "644" },
+    { source = "packaging/linux/io.github.redrield.Conductor.metainfo.xml", dest = "/usr/share/metainfo/io.github.redrield.Conductor.metainfo.xml", mode = "644" },
+    { source = "packaging/linux/conductor.svg", dest = "/usr/share/icons/hicolor/scalable/apps/io.github.redrield.Conductor.svg", mode = "644" },
+    { source = "README.md", dest = "/usr/share/doc/conductor/README.md", mode = "644", doc = true },
+]
+auto-req = "auto"
+
+# `cargo bundle` for the macOS .app
 [package.metadata.bundle]
 name = "Conductor"
-identifier = "io.github.Redrield.Conductor"
-copyright = "MPL-2"
-
-[package.metadata.rpm]
-package = "conductor"
-
-[package.metadata.rpm.cargo]
-buildflags = ["--release"]
-
-[package.metadata.rpm.targets]
-conductor = { path = "/usr/bin/conductor" }
+identifier = "io.github.redrield.Conductor"
+icon = ["packaging/macos/conductor.icns"]
+copyright = "MPL-2.0"
+category = "public.app-category.developer-tools"

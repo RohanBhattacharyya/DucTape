@@ -1,12 +1,15 @@
+// Raw IOKit FFI, carried over from Conductor 0.1
+#![allow(unsafe_op_in_unsafe_fn, clippy::missing_safety_doc)]
+
 use core_foundation::array::{CFArrayGetCount, CFArrayGetValueAtIndex};
-use core_foundation::base::{kCFAllocatorDefault, Boolean, CFIndexConvertible, CFRelease};
+use core_foundation::base::{Boolean, CFIndexConvertible, CFRelease, kCFAllocatorDefault};
 use core_foundation::dictionary::{
-    kCFTypeDictionaryKeyCallBacks, kCFTypeDictionaryValueCallBacks, CFDictionaryCreateMutable,
-    CFDictionaryRef, CFDictionarySetValue,
+    CFDictionaryCreateMutable, CFDictionaryRef, CFDictionarySetValue,
+    kCFTypeDictionaryKeyCallBacks, kCFTypeDictionaryValueCallBacks,
 };
 use core_foundation::number::CFNumberCreate;
 use core_foundation::set::{CFSetGetCount, CFSetGetValues, CFSetRef};
-use core_foundation::string::{kCFStringEncodingUTF8, CFStringCreateWithBytes};
+use core_foundation::string::{CFStringCreateWithBytes, kCFStringEncodingUTF8};
 
 #[path = "mgr/ffi.rs"]
 mod ffi;
@@ -28,7 +31,7 @@ impl InputManager {
 
             let open_status = IOHIDManagerOpen(mgr, 0);
             if open_status != 0 {
-                println!("Failed to create macOS HID manager");
+                tracing::warn!("failed to open the macOS HID manager");
                 CFRelease(mgr as *const _);
                 return None;
             }
@@ -70,9 +73,8 @@ impl InputManager {
 impl Drop for InputManager {
     fn drop(&mut self) {
         unsafe {
+            // The key elements are borrowed from the device and must not be released here
             CFRelease(self.iomgr as *const _);
-            CFRelease(self.return_key as *const _);
-            CFRelease(self.space_key as *const _);
         }
     }
 }
@@ -101,13 +103,13 @@ unsafe fn initialize_keys(mgr: IOHIDManagerRef) -> Option<(IOHIDElementRef, IOHI
 unsafe fn load_keyboard(keyboard: IOHIDDeviceRef) -> Option<(IOHIDElementRef, IOHIDElementRef)> {
     let keys = IOHIDDeviceCopyMatchingElements(keyboard, ptr::null(), 0);
     if keys.is_null() {
-        println!("NULL keys pointer");
+        tracing::debug!("keyboard has no elements");
         return None;
     }
 
     let count = CFArrayGetCount(keys);
     if count == 0 {
-        println!("Keyless keyboard");
+        tracing::debug!("keyboard has no keys");
         CFRelease(keys as *const _);
     }
 

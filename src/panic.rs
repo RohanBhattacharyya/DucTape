@@ -1,56 +1,40 @@
-use human_panic::{handle_dump, Metadata};
-use std::fmt::Result as FmtResult;
-use std::fmt::Write;
-use std::panic::PanicInfo;
+//! Crash reporting for the GUI: write a report with human-panic and say where it is in a dialog.
+
+use std::panic::PanicHookInfo;
 use std::path::Path;
-use tinyfiledialogs::{message_box_ok, MessageBoxIcon};
 
-pub fn hook(info: &PanicInfo) {
-    let meta = Metadata {
-        version: env!("CARGO_PKG_VERSION").into(),
-        name: env!("CARGO_PKG_NAME").into(),
-        authors: env!("CARGO_PKG_AUTHORS").replace(":", ", ").into(),
-        homepage: env!("CARGO_PKG_HOMEPAGE").into(),
-    };
+use human_panic::{Metadata, handle_dump};
+use tinyfiledialogs::{MessageBoxIcon, message_box_ok};
 
-    let file = handle_dump(&meta, info);
-    let msg = create_msg(file, &meta).expect("Failed to create error message");
-    message_box_ok("An Unexpected Error Occured", &msg, MessageBoxIcon::Error);
+pub fn install() {
+    // With RUST_BACKTRACE set, keep the default hook for developers
+    if std::env::var_os("RUST_BACKTRACE").is_none() {
+        std::panic::set_hook(Box::new(hook));
+    }
 }
 
-pub fn create_msg<P: AsRef<Path>>(
-    file_path: Option<P>,
-    meta: &Metadata,
-) -> Result<String, std::fmt::Error> {
-    let (_version, name, authors, homepage) =
-        (&meta.version, &meta.name, &meta.authors, &meta.homepage);
+fn hook(info: &PanicHookInfo<'_>) {
+    let meta = Metadata::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+        .authors(env!("CARGO_PKG_AUTHORS").replace(':', ", "))
+        .homepage(env!("CARGO_PKG_HOMEPAGE"));
 
-    let mut buffer = String::new();
+    let file = handle_dump(&meta, info);
+    let msg = message(file.as_deref());
+    eprintln!("{msg}");
+    message_box_ok("An Unexpected Error Occurred", &msg, MessageBoxIcon::Error);
+}
 
-    writeln!(&mut buffer, "Well, this is embarrassing.\n")?;
-    writeln!(
-        &mut buffer,
-        "{} had a problem and crashed. To help diagnose the \
-     problem you can send us a crash report.\n",
-        name
-    )?;
-    writeln!(
-        &mut buffer,
-        "A report file has been generated at \"{}\". Submit an \
-     issue and include the \
-     details in the report file so that I can diagnose the error.\n",
-        match file_path {
-            Some(fp) => format!("{}", fp.as_ref().display()),
-            None => "<Failed to store file to disk>".to_string(),
-        }
-    )?;
-
-    writeln!(
-        &mut buffer,
-        "\nConductor does not perform automated error collection. In order to improve the software, I rely on \
-     people to submit reports.\n"
-    )?;
-    writeln!(&mut buffer, "Thank you kindly!")?;
-
-    Ok(buffer)
+fn message(file: Option<&Path>) -> String {
+    format!(
+        "Well, this is embarrassing.\n\n\
+         Conductor had a problem and crashed. To help diagnose the problem you can send a crash report.\n\n\
+         A report file has been generated at \"{}\". Submit an issue and include the details in the \
+         report file so the error can be diagnosed.\n\n\
+         Conductor does not perform automated error collection. Improving it relies on people \
+         submitting reports.\n\nThank you kindly!",
+        file.map_or_else(
+            || "<Failed to store file to disk>".to_string(),
+            |p| p.display().to_string()
+        )
+    )
 }

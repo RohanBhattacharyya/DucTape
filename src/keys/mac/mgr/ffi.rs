@@ -4,7 +4,7 @@ use core_foundation::array::CFArrayRef;
 use core_foundation::base::CFAllocatorRef;
 use core_foundation::dictionary::CFDictionaryRef;
 use core_foundation::set::CFSetRef;
-use libc::c_void;
+use std::ffi::c_void;
 
 #[repr(C)]
 pub struct __IOHIDManager(c_void);
@@ -29,7 +29,7 @@ pub const kHIDPage_GenericDesktop: u32 = 0x01;
 pub const kHIDUsage_GD_Keyboard: u32 = 0x06;
 
 #[link(name = "IOKit", kind = "framework")]
-extern "C" {
+unsafe extern "C" {
     pub fn IOHIDManagerCreate(allocator: CFAllocatorRef, options: u32) -> IOHIDManagerRef;
     pub fn IOHIDManagerOpen(mgr: IOHIDManagerRef, options: u32) -> i32;
     pub fn IOHIDDeviceCopyMatchingElements(

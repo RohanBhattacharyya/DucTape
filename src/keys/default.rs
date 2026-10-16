@@ -1,8 +1,5 @@
-use crate::state::State;
-use crate::webserver::WebsocketHandler;
-use actix::Addr;
-use std::sync::{Arc, RwLock};
+use crate::controller::Controller;
 
-pub fn bind_keys(_state: Arc<RwLock<State>>, _addr: Addr<WebsocketHandler>) -> bool {
+pub fn bind_keys(_ctrl: Controller) -> bool {
     false
 }

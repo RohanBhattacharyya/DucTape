@@ -1,82 +1,88 @@
-use crate::ipc::Message;
-use crate::state::State;
-use crate::webserver::WebsocketHandler;
-use actix::Addr;
-use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use std::{ptr, thread};
+
 use x11::keysym::{XK_Return, XK_backslash, XK_bracketleft, XK_bracketright, XK_space};
-use x11::xlib::{XInitThreads, XKeysymToKeycode, XOpenDisplay, XQueryKeymap};
+use x11::xlib::{XCloseDisplay, XInitThreads, XKeysymToKeycode, XOpenDisplay, XQueryKeymap};
 
-pub fn bind_keys(state: Arc<RwLock<State>>, addr: Addr<WebsocketHandler>) -> bool {
-    // BEGIN: Rust written like C
-    unsafe {
+use crate::controller::{Controller, Source};
+
+/// Polls the X11 keymap. Returns false when global hotkeys aren't possible, in which case the
+/// UI handles Enter and Space itself while its window is focused.
+pub fn bind_keys(ctrl: Controller) -> bool {
+    // Wayland compositors don't let clients observe keys pressed in other windows
+    let wayland = std::env::var_os("WAYLAND_DISPLAY").is_some()
+        && std::env::var("XDG_SESSION_TYPE").is_ok_and(|t| t == "wayland");
+    if wayland {
+        tracing::info!(
+            "global hotkeys are unavailable on Wayland; Enter/Space work while Conductor is focused"
+        );
+        return false;
+    }
+
+    // SAFETY: XInitThreads must precede other Xlib calls; the display is only used on the
+    // polling thread below.
+    let display = unsafe {
         XInitThreads();
-        thread::spawn(move || {
-            // Just keep an XDisplay handle until the program dies since this is repeatedly polled
-            let display = XOpenDisplay(ptr::null());
-            if display.is_null() {
-                println!("Failed to open display");
-                // Failure means the frontend needs to handle keybinds,
-                addr.do_send(Message::Capabilities {
-                    backend_keybinds: false,
-                });
-                return;
-            }
+        XOpenDisplay(ptr::null())
+    };
+    if display.is_null() {
+        tracing::warn!("could not open the X display, global hotkeys are unavailable");
+        return false;
+    }
+    let display = display as usize;
 
-            // Constants for the keycodes we care about
-            let return_code = XKeysymToKeycode(display, XK_Return as u64);
-            let space_code = XKeysymToKeycode(display, XK_space as u64);
-            let left_bracket_code = XKeysymToKeycode(display, XK_bracketleft as u64);
-            let right_bracket_code = XKeysymToKeycode(display, XK_bracketright as u64);
-            let backslash_code = XKeysymToKeycode(display, XK_backslash as u64);
+    thread::Builder::new()
+        .name("hotkeys".into())
+        .spawn(move || {
+            let display = display as *mut x11::xlib::Display;
+            // SAFETY: display is a valid connection owned by this thread for its lifetime
+            let code = |sym: u32| unsafe { XKeysymToKeycode(display, sym.into()) };
+            let return_code = code(XK_Return);
+            let space_code = code(XK_space);
+            let enable_codes = [
+                code(XK_bracketleft),
+                code(XK_bracketright),
+                code(XK_backslash),
+            ];
 
-            // State variables to debounce signals
-            let mut return_pressed = false;
-            let mut space_pressed = false;
-            let mut enable_triggered = true;
+            // Only act on the transition to pressed
+            let mut return_was = false;
+            let mut space_was = false;
+            let mut enable_was = true;
 
             loop {
-                let mut keymap: [libc::c_char; 32] = [0; 32];
-                XQueryKeymap(display, keymap.as_mut_ptr());
+                let mut keymap = [0 as std::ffi::c_char; 32];
+                // SAFETY: XQueryKeymap writes exactly 32 bytes
+                unsafe { XQueryKeymap(display, keymap.as_mut_ptr()) };
+                let pressed = |code: u8| keymap[code as usize / 8] as u8 & (1 << (code % 8)) != 0;
 
-                if check_keycode(keymap, return_code) && !return_pressed {
-                    state.write().unwrap().disable();
-                    addr.do_send(Message::UpdateEnableStatus {
-                        enabled: false,
-                        from_backend: true,
-                    });
+                let ret = pressed(return_code);
+                let space = pressed(space_code);
+                let enable = enable_codes.iter().all(|&c| pressed(c));
+
+                if ret && !return_was {
+                    ctrl.disable(Source::Hotkey);
                 }
-
-                if check_keycode(keymap, space_code) && !space_pressed {
-                    let mut state = state.write().unwrap();
-                    if state.ds.enabled() {
-                        state.estop();
-                        addr.do_send(Message::EstopRobot { from_backend: true });
-                    }
+                if space && !space_was && ctrl.ds().enabled() {
+                    ctrl.estop(Source::Hotkey);
                 }
-
-                if check_keycode(keymap, left_bracket_code)
-                    && check_keycode(keymap, right_bracket_code)
-                    && check_keycode(keymap, backslash_code)
-                    && !enable_triggered
+                if enable
+                    && !enable_was
+                    && let Err(e) = ctrl.enable(Source::Hotkey, None)
                 {
-                    state.write().unwrap().enable();
+                    ctrl.notice(format!("Could not enable: {e}"));
                 }
 
-                return_pressed = check_keycode(keymap, return_code);
-                space_pressed = check_keycode(keymap, space_code);
-                enable_triggered = check_keycode(keymap, left_bracket_code)
-                    && check_keycode(keymap, right_bracket_code)
-                    && check_keycode(keymap, backslash_code);
-
+                return_was = ret;
+                space_was = space;
+                enable_was = enable;
                 thread::sleep(Duration::from_millis(20));
             }
-        });
-    }
-    true
-}
-
-fn check_keycode(keymap: [libc::c_char; 32], code: u8) -> bool {
-    keymap[code as usize / 8] & (1 << (code % 8)) != 0
+            #[allow(unreachable_code)]
+            // SAFETY: closing the display we opened
+            unsafe {
+                XCloseDisplay(display);
+            }
+        })
+        .is_ok()
 }
