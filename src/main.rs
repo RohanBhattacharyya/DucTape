@@ -51,6 +51,10 @@ enum Command {
 
 #[derive(Args, Clone)]
 struct RunArgs {
+    /// Config file to use instead of the default location
+    #[arg(long, value_name = "PATH", global = true, env = "CONDUCTOR_CONFIG")]
+    config: Option<std::path::PathBuf>,
+
     /// Team number (saved for next time)
     #[arg(long, short, global = true, env = "CONDUCTOR_TEAM")]
     team: Option<u32>,
@@ -144,6 +148,10 @@ Every MCP enable is timed; Conductor disables the robot when it runs out."#,
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    if let Some(path) = &cli.run.config {
+        // SAFETY: still single-threaded; config::path reads this
+        unsafe { std::env::set_var("CONDUCTOR_CONFIG", path) };
+    }
     if matches!(cli.command, Some(Command::McpSetup)) {
         mcp_setup();
         return ExitCode::SUCCESS;

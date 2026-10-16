@@ -1,0 +1,153 @@
+@import "bootstrap/dist/css/bootstrap.min.css";
+
+/* A dark theme close to the Bootswatch "Darkly" look of Conductor 0.1, without web fonts so the
+   UI works offline at competitions. */
+[data-bs-theme="dark"] {
+  --bs-body-bg: #222;
+  --bs-body-color: #fff;
+  --bs-secondary-bg: #303030;
+  --bs-tertiary-bg: #2b2b2b;
+  --bs-border-color: #444;
+  --bs-success: #00bc8c;
+  --bs-success-rgb: 0, 188, 140;
+  --bs-danger: #e74c3c;
+  --bs-danger-rgb: 231, 76, 60;
+  --bs-warning: #f39c12;
+  --bs-warning-rgb: 243, 156, 18;
+  --bs-primary: #375a7f;
+  --bs-primary-rgb: 55, 90, 127;
+  --bs-font-sans-serif: "Lato", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  user-select: none;
+  overflow: hidden;
+}
+
+input,
+.console {
+  user-select: text;
+}
+
+.btn-secondary {
+  --bs-btn-bg: #444;
+  --bs-btn-border-color: #444;
+  --bs-btn-hover-bg: #555;
+  --bs-btn-active-bg: #666;
+  --bs-btn-active-border-color: #888;
+}
+
+.mode-list .btn {
+  text-align: left;
+}
+
+.enable-btn {
+  color: #11cd9d !important;
+  font-weight: bold;
+}
+
+.disable-btn {
+  color: #f85d4d !important;
+  font-weight: bold;
+}
+
+.indicator {
+  display: inline-block;
+  width: 1.6rem;
+  height: 1rem;
+  border-radius: 0.2rem;
+  background: var(--bs-danger);
+}
+
+.indicator.ok {
+  background: var(--bs-success);
+}
+
+.indicator.round {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+}
+
+.status-text {
+  white-space: pre-line;
+  font-size: 1.25rem;
+  font-weight: 300;
+}
+
+.console {
+  font-family: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", monospace;
+  font-size: 0.8rem;
+  background: var(--bs-secondary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.375rem;
+  overflow-y: auto;
+  padding: 0.25rem 0.5rem;
+}
+
+.console .line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 1.2em;
+}
+
+.console .line.error {
+  color: #ff7b6e;
+}
+
+.console .line.warning {
+  color: #f5c06b;
+}
+
+.console .line.conductor {
+  color: #8fb3d9;
+  font-style: italic;
+}
+
+.joystick-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.25rem;
+  background: var(--bs-secondary-bg);
+  border: 1px solid #111;
+  border-radius: 0.375rem;
+  touch-action: none;
+}
+
+.joystick-row.dragging {
+  opacity: 0.85;
+  border-color: var(--bs-primary);
+  z-index: 1;
+}
+
+.joystick-row .handle {
+  cursor: grab;
+  color: #888;
+}
+
+.axis-bar {
+  position: relative;
+  height: 0.5rem;
+  background: #444;
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.axis-bar > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--bs-primary);
+}
+
+.agent-badge {
+  background: #6f42c1;
+}

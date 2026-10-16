@@ -137,6 +137,8 @@ pub struct Snapshot {
     pub voltage: f32,
     /// Summary shown in the UI, e.g. "Teleoperated Enabled" or "No Robot Code"
     pub status: String,
+    /// A problem that prevents talking to any robot, e.g. another driver station is running
+    pub link_error: Option<String>,
     pub joysticks: Vec<JoystickSlot>,
     pub unbound_joysticks: Vec<JoystickDevice>,
     pub virtual_joystick: VirtualJoystickState,

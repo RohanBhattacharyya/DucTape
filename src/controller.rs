@@ -279,6 +279,7 @@ impl Controller {
             brownout: telemetry.brownout,
             voltage: (telemetry.voltage * 100.0).round() / 100.0,
             status,
+            link_error: ds.link_error(),
             joysticks,
             unbound_joysticks,
             virtual_joystick: self.0.joysticks.virtual_state(),
@@ -407,6 +408,12 @@ impl Controller {
             }
         }
         let telemetry = ds.telemetry();
+        if let Some(error) = ds.link_error() {
+            return Err(format!(
+                "{error}. Close the other driver station, or attach to the running Conductor \
+                 window with `conductor --mcp-http` and an HTTP MCP connection."
+            ));
+        }
         if !telemetry.connected {
             return Err(format!(
                 "No robot communication (trying {}). Check the team number and connection.",

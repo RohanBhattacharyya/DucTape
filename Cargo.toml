@@ -121,6 +121,6 @@ auto-req = "auto"
 [package.metadata.bundle]
 name = "Conductor"
 identifier = "io.github.redrield.Conductor"
-icon = ["packaging/macos/conductor.icns"]
+icon = ["packaging/macos/icon_32.png", "packaging/macos/icon_128.png", "packaging/macos/icon_256.png", "packaging/macos/icon_512.png"]
 copyright = "MPL-2.0"
 category = "public.app-category.developer-tools"

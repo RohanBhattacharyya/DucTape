@@ -1,7 +1,7 @@
 //! The I/O thread: a single-threaded tokio runtime that owns every socket.
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -49,11 +49,30 @@ pub(crate) fn spawn(
         .expect("failed to spawn driver station thread")
 }
 
-async fn bind_udp(addr: SocketAddr) -> Option<UdpSocket> {
-    match UdpSocket::bind(addr).await {
-        Ok(sock) => Some(sock),
+/// Binds a UDP socket. Failures are stored in `error` and logged once rather than on every retry.
+async fn bind_udp(addr: SocketAddr, error: &Mutex<Option<String>>) -> Option<UdpSocket> {
+    let result = UdpSocket::bind(addr).await;
+    let mut error = error.lock().unwrap_or_else(|e| e.into_inner());
+    match result {
+        Ok(sock) => {
+            if error.take().is_some() {
+                tracing::info!("bound UDP {addr}");
+            }
+            Some(sock)
+        }
         Err(e) => {
-            tracing::warn!("failed to bind UDP {addr}: {e}; retrying");
+            let msg = if e.kind() == std::io::ErrorKind::AddrInUse {
+                format!(
+                    "UDP port {} is in use: another driver station (or Conductor) is already running",
+                    addr.port()
+                )
+            } else {
+                format!("could not bind UDP {addr}: {e}")
+            };
+            if error.as_deref() != Some(msg.as_str()) {
+                tracing::warn!("{msg}; retrying");
+                *error = Some(msg);
+            }
             None
         }
     }
@@ -92,12 +111,14 @@ async fn run(shared: Arc<Shared>, mut commands: mpsc::UnboundedReceiver<Command>
         .await
         .expect("failed to bind UDP send socket");
     let rx_addr = SocketAddr::new(any, ports.ds_udp);
-    let mut rx = bind_udp(rx_addr).await;
+    let mut rx = bind_udp(rx_addr, &shared.link_error).await;
     let sim_addr = ports
         .sim_detect
         .map(|port| SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port));
+    // Not being able to detect the simulator isn't worth reporting beyond the log
+    let sim_error = Mutex::new(None);
     let mut sim = match sim_addr {
-        Some(addr) => bind_udp(addr).await,
+        Some(addr) => bind_udp(addr, &sim_error).await,
         None => None,
     };
     let mut last_sim_packet: Option<Instant> = None;
@@ -177,10 +198,10 @@ async fn run(shared: Arc<Shared>, mut commands: mpsc::UnboundedReceiver<Command>
             }
             _ = retry.tick(), if rx.is_none() || (sim.is_none() && sim_addr.is_some()) => {
                 if rx.is_none() {
-                    rx = bind_udp(rx_addr).await;
+                    rx = bind_udp(rx_addr, &shared.link_error).await;
                 }
                 if let (None, Some(addr)) = (&sim, sim_addr) {
-                    sim = bind_udp(addr).await;
+                    sim = bind_udp(addr, &sim_error).await;
                 }
             }
             cmd = commands.recv() => match cmd {

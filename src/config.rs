@@ -1,5 +1,7 @@
 //! Persistent settings, stored at `~/.config/conductor/conductor.toml` on Linux.
 
+use std::path::PathBuf;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -51,24 +53,32 @@ pub struct Config {
     pub mcp: McpConfig,
 }
 
+/// The config file: `$CONDUCTOR_CONFIG` (or `--config`), else the platform default
+pub fn path() -> Option<PathBuf> {
+    match std::env::var_os("CONDUCTOR_CONFIG") {
+        Some(path) => Some(path.into()),
+        None => confy::get_configuration_file_path(APP, APP).ok(),
+    }
+}
+
 pub fn load() -> Config {
-    match confy::load(APP, APP) {
+    let Some(path) = path() else {
+        return Config::default();
+    };
+    match confy::load_path(&path) {
         Ok(cfg) => cfg,
         Err(e) => {
-            tracing::warn!("could not load config, using defaults: {e}");
+            tracing::warn!("could not load {}, using defaults: {e}", path.display());
             Config::default()
         }
     }
 }
 
 pub fn store(cfg: &Config) {
-    if let Err(e) = confy::store(APP, APP, cfg) {
-        tracing::warn!("could not save config: {e}");
+    let Some(path) = path() else { return };
+    if let Err(e) = confy::store_path(&path, cfg) {
+        tracing::warn!("could not save {}: {e}", path.display());
     }
-}
-
-pub fn path() -> Option<std::path::PathBuf> {
-    confy::get_configuration_file_path(APP, APP).ok()
 }
 
 #[cfg(test)]

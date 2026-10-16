@@ -139,6 +139,8 @@ pub(crate) struct Shared {
     pub telemetry: Mutex<Telemetry>,
     pub joystick_supplier: Mutex<Option<Box<JoystickSupplier>>>,
     pub tcp_consumer: Mutex<Option<Box<TcpConsumer>>>,
+    /// Why the driver station can't currently receive from the robot, if it can't
+    pub link_error: Mutex<Option<String>>,
 }
 
 impl Shared {
@@ -275,6 +277,7 @@ impl Builder {
             telemetry: Mutex::new(Telemetry::default()),
             joystick_supplier: Mutex::new(None),
             tcp_consumer: Mutex::new(None),
+            link_error: Mutex::new(None),
         });
         let (tx, rx) = mpsc::unbounded_channel();
         let thread = conn::spawn(shared.clone(), rx, self.ports);
@@ -454,6 +457,16 @@ impl DriverStation {
 
     pub fn telemetry(&self) -> Telemetry {
         *self.shared.telemetry()
+    }
+
+    /// A problem preventing communication with any robot, such as the status port being taken
+    /// by another driver station
+    pub fn link_error(&self) -> Option<String> {
+        self.shared
+            .link_error
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     pub fn is_connected(&self) -> bool {
