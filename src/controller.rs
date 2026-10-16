@@ -21,6 +21,7 @@ pub const MAX_TEAM_NUMBER: u32 = 25599;
 
 /// Who asked for a change. Only MCP clients are subject to the enable policy.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(not(feature = "gui"), allow(dead_code))]
 pub enum Source {
     Ui,
     Hotkey,
@@ -238,6 +239,7 @@ impl Controller {
         self.local().mcp_url = url;
     }
 
+    #[cfg_attr(not(feature = "gui"), allow(dead_code))]
     pub fn set_backend_keybinds(&self, enabled: bool) {
         self.local().backend_keybinds = enabled;
         self.publish();

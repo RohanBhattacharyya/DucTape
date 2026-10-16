@@ -44,7 +44,7 @@ impl InputManager {
                 })
             } else {
                 CFRelease(mgr as *const _);
-                return None;
+                None
             }
         }
     }

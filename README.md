@@ -102,6 +102,10 @@ Robot code sees six joystick ports. Controllers are put on the first free port w
 
 Conductor is an MCP server. Agents get tools to read status, set the team number, mode, alliance and game data, enable/disable/e-stop, restart code, reboot the roboRIO, wait for the robot to connect, read the console, manage joystick ports and drive the virtual joystick. The `run_mode` tool runs a mode for a set time and returns the console output, which makes it easy to ask an agent to "run auto in the simulator and tell me why it crashes".
 
+![An agent running the robot](./images/conductor-agent.png)
+
+*An agent enabled the robot over MCP: the window says so, and shows when Conductor will disable it*
+
 Run `conductor mcp-setup` to print these instructions with the right paths.
 
 **Claude Code**
@@ -162,6 +166,12 @@ conductor mcp-setup              print MCP client configuration
 ```
 
 Logging goes to stderr; set `CONDUCTOR_LOG=debug` for more.
+
+# Troubleshooting
+
+- **Blank window on Wayland** (often with NVIDIA): run `WEBKIT_DISABLE_DMABUF_RENDERER=1 conductor`.
+- **"UDP port 1150 is in use"**: another driver station, or another Conductor, is running. Only one can talk to a robot at a time; to share one with an agent, use `--mcp-http`.
+- **Controllers not detected**: your user needs read access to `/dev/input/event*`, which systemd-logind grants for the active session on most desktops.
 
 # Building and contributing
 
