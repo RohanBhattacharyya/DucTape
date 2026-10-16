@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.redrield.Conductor</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MPL-2.0</project_license>
+  <name>Conductor</name>
+  <summary>Driver station for FRC robots</summary>
+  <description>
+    <p>
+      Conductor is a driver station for FIRST Robotics Competition robots on Linux and macOS.
+      It connects to a roboRIO or the WPILib simulator, enables and disables the robot in
+      autonomous, teleoperated and test modes, maps game controllers to joystick ports, and
+      shows the robot console.
+    </p>
+    <p>
+      Conductor includes a Model Context Protocol server, so AI agents can run the driver
+      station too: check status, run timed tests, read the console and drive a virtual
+      joystick. By default agents may only enable the simulator, and every agent enable is timed.
+    </p>
+    <p>Conductor is not compatible with the Field Management System and cannot be used in competition.</p>
+  </description>
+  <launchable type="desktop-id">io.github.redrield.Conductor.desktop</launchable>
+  <url type="homepage">https://github.com/Redrield/Conductor</url>
+  <url type="bugtracker">https://github.com/Redrield/Conductor/issues</url>
+  <developer id="io.github.redrield">
+    <name>Conductor contributors</name>
+  </developer>
+  <provides>
+    <binary>conductor</binary>
+  </provides>
+  <categories>
+    <category>Development</category>
+    <category>Robotics</category>
+  </categories>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/Redrield/Conductor/next/images/conductor-control-connected.png</image>
+      <caption>The control tab while connected to a robot</caption>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.2.0" date="2026-10-16">
+      <description>
+        <p>Modernised stack, Linux packages, and a Model Context Protocol server for AI agents.</p>
+      </description>
+    </release>
+  </releases>
+</component>

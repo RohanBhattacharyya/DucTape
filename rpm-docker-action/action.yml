@@ -1,5 +1,0 @@
-name: 'RPM Builder'
-description: 'Build the rpm archive for Conductor'
-runs:
-    using: 'docker'
-    image: 'Dockerfile'

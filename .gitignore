@@ -1,7 +1,11 @@
 /target
 **/*.rs.bk
-**/elm-stuff/*
-**/index.js
-**/stdout.js
 *.log
 .idea
+ui/node_modules/
+ui/dist/
+# makepkg
+packaging/arch/src/
+packaging/arch/pkg/
+packaging/arch/conductor/
+packaging/arch/*.pkg.tar.*

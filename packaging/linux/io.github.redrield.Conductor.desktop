@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Conductor
+GenericName=FRC Driver Station
+Comment=Drive FRC robots and the WPILib simulator
+Exec=conductor
+Icon=io.github.redrield.Conductor
+Terminal=false
+Categories=Science;Robotics;
+Keywords=FRC;FIRST;robot;driver station;WPILib;MCP;
+StartupWMClass=conductor
